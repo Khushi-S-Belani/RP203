@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Python cache & artifacts
+__pycache__/
+*.pyc
+*.pyo
+crop_debug.jpg
+generated_strips/
+face_detector
+
+# Large binary AI models (download on demand via download_models.sh)
+*.onnx
+gender_model.onnx
+
+# OS files
+.DS_Store
+Thumbs.db

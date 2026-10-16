@@ -1,0 +1,30 @@
+{
+  "name": "snapbooth-rp203",
+  "version": "1.0.0",
+  "description": "SnapBooth photo booth app with RP203 thermal printer support",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "install-driver": "brew install --cask wch-ch34x-usb-serial-driver",
+    "open": "open index.html"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.1.1",
+    "@point-of-sale/receipt-printer-encoder": "^4.0.1",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jimp": "^0.22.10",
+    "serialport": "^12.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "photo-booth",
+    "thermal-printer",
+    "rp203",
+    "escpos"
+  ],
+  "author": "SnapBooth",
+  "license": "MIT"
+}
