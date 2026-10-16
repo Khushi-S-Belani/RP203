@@ -110,13 +110,25 @@ body.couple-mode-active .brand-icon {
   transform: scale(1.08);
 }
 
+.brand-text-col {
+  display: flex;
+  flex-direction: column;
+}
+
 .brand-title {
   font-family: 'Fredoka', cursive;
-  font-size: 1.7rem;
+  font-size: 1.65rem;
   font-weight: 700;
   color: #2563eb;
   letter-spacing: -0.02em;
+  line-height: 1.1;
   transition: color 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.brand-sub {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: -0.01em;
 }
 body.couple-mode-active .brand-title {
   color: #ff3366;
@@ -910,6 +922,18 @@ body.couple-mode-active .strip-love-divider {
   font-weight: 700;
   color: #000000;
   letter-spacing: 0.06em;
+}
+
+.strip-permanent-branding {
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #000000;
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+  padding-top: 3px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.4);
+  text-transform: uppercase;
 }
 .strip-heart-line {
   font-size: 0.85rem;

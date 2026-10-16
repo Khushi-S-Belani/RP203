@@ -6,6 +6,7 @@ cd "$DIR"
 
 echo "=================================================="
 echo "   📸 SnapBooth — RP203 Thermal Photo Booth       "
+echo "   Prince Tagadiya • The Creato4 Lab              "
 echo "=================================================="
 echo ""
 echo "Starting local web server on http://localhost:8080 ..."

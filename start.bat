@@ -1,9 +1,10 @@
 @echo off
-title RP203 Thermal Photo Booth - Windows Edition
+title RP203 Thermal Photo Booth - Prince Tagadiya • The Creato4 Lab
 color 0b
 
 echo ========================================================
 echo   RP203 Thermal Photo Booth - Windows Plug and Play
+echo   Created by Prince Tagadiya • The Creato4 Lab
 echo ========================================================
 echo.
 echo [1/2] Checking Node.js environment...

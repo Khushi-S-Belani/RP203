@@ -76,9 +76,9 @@ async function main() {
         '--------------------------------',
         'Chinese mode: DISABLED          ',
         'Charset: CP437 USA              ',
-        `Baud: ${BAUD}                   `,
         '================================',
         '        HAVE A NICE DAY         ',
+        '  PRINCE TAGADIYA • CREATO4 LAB ',
         '================================',
       ];
       for (const line of lines) {

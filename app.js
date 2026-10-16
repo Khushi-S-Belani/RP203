@@ -816,7 +816,7 @@ async function renderStripCanvas() {
   const photoH = 260;     // 260 dots (sharp 1.4:1 ratio)
   const headerH = 82;     // Space for PHOTO BOOTH + CREATO 4 + Date + Line
   const photoGap = 12;    // Clean gap between photos
-  const footerH = 58;     // Space for Line + HAVE A NICE DAY
+  const footerH = 78;     // Space for Line + HAVE A NICE DAY + Prince Tagadiya • The Creato4 Lab
 
   const totalH = headerH + (3 * photoH) + (2 * photoGap) + footerH;
 
@@ -925,7 +925,7 @@ async function renderStripCanvas() {
     currentY += photoH + photoGap;
   }
 
-  // 3. BOTTOM FOOTER: HAVE A NICE DAY / YAARI / LOVE
+  // 3. BOTTOM FOOTER: CAPTION + PERMANENT MAKER BRANDING
   const footerDividerY = currentY - photoGap + 8;
   ctx.lineWidth = 2;
   ctx.strokeStyle = '#000000';
@@ -936,15 +936,21 @@ async function renderStripCanvas() {
 
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
-  if (footerLine2) {
-    ctx.font = 'bold 16px sans-serif';
-    ctx.fillText(footerLine1, stripW / 2, footerDividerY + 22);
-    ctx.font = 'bold 13px sans-serif';
-    ctx.fillText(footerLine2, stripW / 2, footerDividerY + 42);
-  } else {
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText(footerLine1, stripW / 2, footerDividerY + 28);
-  }
+
+  // Primary caption line (e.g., HAVE A NICE DAY or custom caption)
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText(footerLine1, stripW / 2, footerDividerY + 23);
+
+  // Permanent Signature Branding requested by user (always printed on paper)
+  ctx.font = 'bold 11px monospace';
+  ctx.fillText('PRINCE TAGADIYA  ★  THE CREATO4 LAB', stripW / 2, footerDividerY + 45);
+
+  // Subtle clean bottom boundary line
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padX + 24, footerDividerY + 58);
+  ctx.lineTo(stripW - padX - 24, footerDividerY + 58);
+  ctx.stroke();
 
   return canvas;
 }
@@ -1744,6 +1750,7 @@ async function runTestPrint() {
       '* FEED LENGTH  : 10CM / 100MM OK',
       '--------------------------------',
       '        HAVE A NICE DAY!        ',
+      '  PRINCE TAGADIYA • CREATO4 LAB ',
       '    THANK YOU FOR VISITING!     ',
       '================================'
     ];
