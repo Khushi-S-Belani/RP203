@@ -59,51 +59,30 @@ const uploadBox         = document.getElementById('upload-box');
 const viewportBox       = document.getElementById('viewport-box');
 const fileInput         = document.getElementById('file-input');
 
-// ── RANDOM CAPTIONS POOL (SYNCHRONIZED WITH PREVIEW & PAPER) ──
 const RANDOM_CAPTIONS = [
-  // Two-Person Love & Hug Captions
-  { title: '♥ PHOTO BOOTH ♥', subtitle: 'HUG & LOVE FOREVER', footerLine1: '♥ YOU ARE MY FAVORITE ♥', footerLine2: 'HAVE A NICE DAY', theme: 'love' },
-  { title: '♥ LOVE BIRDS ♥', subtitle: 'SWEET TOGETHER', footerLine1: '♥ BETTER TOGETHER FOREVER ♥', footerLine2: 'HAVE A NICE DAY', theme: 'love' },
-  { title: '♥ TWO HEARTS ♥', subtitle: 'HUGS, KISSES & SMILES', footerLine1: '♥ ALWAYS & FOREVER ♥', footerLine2: 'HAVE A NICE DAY', theme: 'love' },
-
-  // Two-Person Yaari / Bros Captions
-  { title: '★ YAARI FOREVER ★', subtitle: 'BROS FOR LIFE', footerLine1: '★ BRO CODE UNLIMITED ★', footerLine2: 'HAVE A NICE DAY', theme: 'yaari' },
-  { title: '★ LEGENDARY DUO ★', subtitle: 'DOUBLE TROUBLE', footerLine1: '★ PARTNERS IN CRIME ★', footerLine2: 'HAVE A NICE DAY', theme: 'yaari' },
-
-  // Besties Captions
-  { title: '✨ BESTIES CLUB ✨', subtitle: 'PURE HAPPINESS', footerLine1: '✨ CUTE & CRAZY ALWAYS ✨', footerLine2: 'HAVE A NICE DAY', theme: 'bestie' },
-  { title: '✨ DOUBLE CUTE ✨', subtitle: 'MAKING MEMORIES', footerLine1: '✨ SHINE TOGETHER ✨', footerLine2: 'HAVE A NICE DAY', theme: 'bestie' },
-
-  // Classic & General Captions
-  { title: 'PHOTO BOOTH', subtitle: 'GOOD VIBES ONLY', footerLine1: 'HAVE A NICE DAY', footerLine2: 'KEEP SMILING' },
-  { title: '★ SNAP BOOTH ★', subtitle: 'MAKING MEMORIES', footerLine1: '★ FOREVER YOUNG ★', footerLine2: 'HAVE A NICE DAY' },
-  { title: 'CREATO 4', subtitle: 'BEST CREW EVER', footerLine1: 'LITTLE MOMENTS, BIG MEMORIES', footerLine2: 'HAVE A NICE DAY' },
-  { title: '★ PHOTO BOOTH ★', subtitle: 'CAUGHT ON CAMERA', footerLine1: '★ YOU LOOK AMAZING ★', footerLine2: 'HAVE A NICE DAY' },
-  { title: 'SMILE CLUB', subtitle: 'PURE HAPPINESS', footerLine1: 'CHERISH THE MOMENTS', footerLine2: 'HAVE A NICE DAY' },
-  { title: '★ ICONIC SHOTS ★', subtitle: 'UNFORGETTABLE TIMES', footerLine1: '★ BEST FRIENDS FOREVER ★', footerLine2: 'HAVE A NICE DAY' },
-  { title: 'PHOTO BOOTH', subtitle: 'SWEET VIBES ONLY', footerLine1: 'LOVE & LAUGHTER ALWAYS', footerLine2: 'HAVE A NICE DAY' }
+  { title: 'PHOTO BOOTH', subtitle: 'GOOD VIBES ONLY', footerLine1: 'HAVE A NICE DAY' },
+  { title: 'SNAP BOOTH', subtitle: 'MAKING MEMORIES', footerLine1: 'CHERISH THE MOMENTS' },
+  { title: 'CREATO 4', subtitle: 'BEST CREW EVER', footerLine1: 'LITTLE MOMENTS, BIG MEMORIES' },
+  { title: 'PHOTO BOOTH', subtitle: 'SMILE & LAUGH', footerLine1: 'FOREVER YOUNG' },
+  { title: 'ICONIC SHOTS', subtitle: 'UNFORGETTABLE TIMES', footerLine1: 'HAVE A NICE DAY' },
+  { title: 'SMILE CLUB', subtitle: 'PURE HAPPINESS', footerLine1: 'KEEP SMILING ALWAYS' },
+  { title: 'PHOTO BOOTH', subtitle: 'SWEET VIBES ONLY', footerLine1: 'LOVE & LAUGHTER ALWAYS' }
 ];
 
 function pickRandomCaption() {
-  const currentTheme = state.groupTheme || 'indigo';
-  const matching = RANDOM_CAPTIONS.filter(c => c.theme === currentTheme);
-  const pool = matching.length > 0 ? matching : RANDOM_CAPTIONS;
-  const idx = Math.floor(Math.random() * pool.length);
-  state.currentCaption = { ...pool[idx] };
+  const idx = Math.floor(Math.random() * RANDOM_CAPTIONS.length);
+  state.currentCaption = { ...RANDOM_CAPTIONS[idx] };
   syncCaptionDisplay();
 }
 
 function shuffleRandomCaption() {
-  const currentTheme = state.groupTheme || 'indigo';
-  const matching = RANDOM_CAPTIONS.filter(c => c.theme === currentTheme);
-  const pool = matching.length > 1 ? matching : RANDOM_CAPTIONS;
   let nextIdx;
   do {
-    nextIdx = Math.floor(Math.random() * pool.length);
-  } while (pool.length > 1 && pool[nextIdx].subtitle === state.currentCaption?.subtitle);
-  state.currentCaption = { ...pool[nextIdx] };
+    nextIdx = Math.floor(Math.random() * RANDOM_CAPTIONS.length);
+  } while (RANDOM_CAPTIONS.length > 1 && RANDOM_CAPTIONS[nextIdx].subtitle === state.currentCaption?.subtitle);
+  state.currentCaption = { ...RANDOM_CAPTIONS[nextIdx] };
   syncCaptionDisplay();
-  setFeedback(`🎲 New Caption: "${state.currentCaption.subtitle}"`);
+  setFeedback(`🎲 Caption: "${state.currentCaption.subtitle}"`);
 }
 
 function syncCaptionDisplay() {
@@ -186,7 +165,6 @@ window.addEventListener('DOMContentLoaded', () => {
   startCamera();
   initStickerEvents();
   initUploadEvents();
-  startFaceDetectionLoop();
   checkAuthorizedPorts();
 
   if (baudInput) {
@@ -248,21 +226,16 @@ async function startCamera() {
 
     video.onloadedmetadata = () => {
       resizeStickerCanvas();
-      resizePoseCanvas();
-      if (window.PhotoboothPoseGuide) {
-        window.PhotoboothPoseGuide.init(video, poseCanvas, poseHintChip);
-      }
     };
     window.addEventListener('resize', () => {
       resizeStickerCanvas();
-      resizePoseCanvas();
     });
   } catch (err) {
     console.warn('Camera error:', err);
     isCameraActive = false;
     updateCameraToggleButton(false);
     switchMode('upload');
-    setFeedback('📷 Camera unavailable. Switched to Upload mode.');
+    setFeedback('Camera unavailable. Switched to Upload mode.');
   }
 }
 
@@ -283,33 +256,35 @@ function stopCamera() {
 function toggleCameraPower() {
   if (isCameraActive) {
     stopCamera();
-    setFeedback('🛑 Camera turned off. Click "Turn On Camera" to resume.');
+    setFeedback('Camera turned off.');
   } else {
     switchMode('camera');
     startCamera();
-    setFeedback('📷 Camera turned on.');
+    setFeedback('Camera active.');
   }
 }
 
 function updateCameraToggleButton(active) {
   const btn = document.getElementById('btn-cam-toggle');
+  const txt = document.getElementById('cam-toggle-text');
   if (!btn) return;
   if (active) {
-    btn.innerHTML = '🛑 Turn Off Camera';
+    if (txt) txt.textContent = 'Camera Active';
     btn.classList.add('cam-active');
-    btn.classList.remove('cam-inactive');
+    btn.classList.remove('cam-off');
   } else {
-    btn.innerHTML = '📸 Turn On Camera';
+    if (txt) txt.textContent = 'Camera Off';
     btn.classList.remove('cam-active');
-    btn.classList.add('cam-inactive');
+    btn.classList.add('cam-off');
   }
 }
 
 function resizeStickerCanvas() {
-  stickerCanvas.width  = viewportBox.offsetWidth;
-  stickerCanvas.height = viewportBox.offsetHeight;
-  drawStickers();
-  resizePoseCanvas();
+  if (stickerCanvas && viewportBox) {
+    stickerCanvas.width  = viewportBox.offsetWidth;
+    stickerCanvas.height = viewportBox.offsetHeight;
+    drawStickers();
+  }
 }
 
 // ── Mode Toggle (Webcam vs Upload) ──────────────────────────
@@ -452,219 +427,72 @@ function initStickerEvents() {
 // MULTI-PERSON (UP TO 4) GROUP DETECTION, THEMES & POSE GUIDES
 // ══════════════════════════════════════════════════════════════
 const poseCanvas   = document.getElementById('pose-canvas');
-const poseHintChip = document.getElementById('pose-hint-chip');
-const groupEmojiEl = document.getElementById('group-emojis');
-
-state.groupType = 'solo';
-state.groupEmojis = '🧑';
-state.groupTheme = 'indigo';
-state.manualGroupOverride = null; // null = auto vision
-state.currentShotIndex = 0;
-state.isPrintCancelled = false;
-
-const GROUP_CYCLE = [
-  { type: 'couple_mf', emojis: '👨 👩', theme: 'love',   name: 'Couple (Boy + Girl)' },
-  { type: 'couple_ff', emojis: '👩 👩', theme: 'bestie', name: 'Besties (Two Girls)' },
-  { type: 'couple_mm', emojis: '👨 👨', theme: 'yaari',  name: 'Yaari / Bros (Two Boys)' },
-  { type: 'solo_m',    emojis: '👨',     theme: 'indigo', name: 'Solo Male' },
-  { type: 'solo_f',    emojis: '👩',     theme: 'bestie', name: 'Solo Female' },
-  { type: 'trio',      emojis: '🧑 🧑 🧑', theme: 'trio',   name: 'Trio (3 People)' },
-  { type: 'squad',     emojis: '🧑 🧑 🧑 🧑', theme: 'squad', name: 'Squad (4 People)' },
-  { type: 'auto',      emojis: '✨',     theme: 'indigo', name: 'Auto Vision Detection' }
-];
-
-function cycleGroupMode() {
-  const currentIdx = GROUP_CYCLE.findIndex(g => g.type === (state.manualGroupOverride || 'auto'));
-  const next = GROUP_CYCLE[(currentIdx + 1) % GROUP_CYCLE.length];
-  state.manualGroupOverride = next.type === 'auto' ? null : next.type;
-  if (state.manualGroupOverride) {
-    applyGroupState(next.type, next.emojis, next.theme);
-    setFeedback(`Mode: ${next.emojis}`);
-  } else {
-    state.detectedFaceCount = 0;
-    applyGroupState('solo', '✨', 'indigo');
-    setFeedback('🔍 Auto Vision Detection active');
-  }
-}
-
-function applyGroupState(type, emojis, theme) {
-  state.groupType = type;
-  state.groupEmojis = emojis;
-  state.groupTheme = theme;
-
-  // 1. Update clean emoji display on top (Zero text clutter)
-  if (groupEmojiEl) groupEmojiEl.textContent = emojis;
-
-  // 2. Set dynamic theme on body (Updates buttons, glow, borders)
-  document.body.className = 'theme-white theme-' + theme;
-
-  // 3. Draw pose guidance for the current shot
-  drawPoseGuidance(state.currentShotIndex, type);
-}
-
-// ── POSE GUIDANCE ENGINE (MEDIAPIPE AR GHOST SILHOUETTE) ────
-function resizePoseCanvas() {
-  if (!poseCanvas || !viewportBox) return;
-  poseCanvas.width = viewportBox.offsetWidth;
-  poseCanvas.height = viewportBox.offsetHeight;
-}
-
-function drawPoseGuidance(shotIdx, groupType) {
-  if (window.PhotoboothPoseGuide) {
-    window.PhotoboothPoseGuide.setShotIndex(shotIdx);
-  }
-}
-
-// ── NATIVE VISION AUTO-DETECTION LOOP ───────────────────────
-let isDetecting = false;
-async function startFaceDetectionLoop() {
-  setInterval(async () => {
-    if (state.mode !== 'camera' || video.readyState < 2 || isDetecting) return;
-    if (state.manualGroupOverride) return; // User manually locked a mode
-
-    isDetecting = true;
-    try {
-      hiddenCanvas.width = 320;
-      hiddenCanvas.height = 240;
-      const ctx = hiddenCanvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, 320, 240);
-      const b64 = hiddenCanvas.toDataURL('image/jpeg', 0.85);
-
-      const res = await fetch('/api/detect-faces', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: b64 }),
-        signal: AbortSignal.timeout(1200)
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        const gType = json.groupType || 'solo';
-        const emojis = json.emojis || '🧑';
-        const theme = json.themeColor || 'indigo';
-        applyGroupState(gType, emojis, theme);
-      }
-    } catch {
-      // Graceful fallback
-    } finally {
-      isDetecting = false;
-    }
-  }, 1200);
-}
-
 // ── PHOTO BOOTH 3-SHOT SHOOTING ────────────────────────────
 async function startPhotoSession() {
   if (state.isShooting) return;
   if (state.mode === 'upload') {
-    setFeedback('ℹ️ Switch to Live Camera mode to snap 3 live photos.');
+    setFeedback('Switch to Live Camera mode to take photos.');
     return;
   }
 
   state.isShooting = true;
   state.shots = [null, null, null];
   state.currentShot = 0;
+  clearCustomLoadedImage();
   btnShoot.disabled = true;
   btnPrint.disabled = true;
   btnDownload.disabled = true;
 
   const shotSteps = document.getElementById('shot-steps');
-  shotSteps.style.display = 'flex';
+  if (shotSteps) shotSteps.style.display = 'flex';
   for (let i = 0; i < 3; i++) {
     const dot = document.getElementById(`shot-dot-${i}`);
-    dot.className = 'step-circle';
+    if (dot) dot.className = 'shot-dot';
     clearStripFrame(i);
   }
 
   for (let i = 0; i < 3; i++) {
-    state.currentShotIndex = i;
-    drawPoseGuidance(i, state.groupType);
-
     const dot = document.getElementById(`shot-dot-${i}`);
-    dot.classList.add('active');
+    if (dot) dot.classList.add('active');
 
-    await runGuidedPoseCapture(i);
+    setFeedback(`Get ready for Photo ${i + 1} of 3...`);
+    await runCountdown();
+
     const photo = captureFrame();
     state.shots[i] = photo;
     updateStripFrame(i, photo);
-    // Background thermal photo optimization
+
+    // Thermal photo optimization in background
     optimizePhotoWithBackend(photo, i);
 
-    dot.classList.remove('active');
-    dot.classList.add('done');
+    if (dot) {
+      dot.classList.remove('active');
+      dot.classList.add('done');
+    }
     state.currentShot++;
 
     if (i < 2) await wait(700);
   }
 
-  state.currentShotIndex = 0;
-  drawPoseGuidance(0, state.groupType);
   state.isShooting = false;
   btnShoot.disabled = false;
   btnPrint.disabled = false;
   btnDownload.disabled = false;
-
-  if (state.groupType === 'couple_mf') {
-    setFeedback('💖 Romantic Couple Strip Ready! Love symbols added. Click "PRINT STRIP".');
-  } else if (state.groupType === 'couple_mm') {
-    setFeedback('👊 Yaari / Bros Strip Ready! Star badges added. Click "PRINT STRIP".');
-  } else if (state.groupType === 'couple_ff') {
-    setFeedback('✨ Besties Strip Ready! Sparkles added. Click "PRINT STRIP".');
-  } else if (state.groupType === 'trio' || state.groupType === 'squad') {
-    setFeedback('🎉 Squad Strip Ready! Squad badges added. Click "PRINT STRIP".');
-  } else {
-    setFeedback('📸 3 Photos ready! Click "PRINT STRIP" to print.');
-  }
-}
-
-async function runGuidedPoseCapture(shotIdx) {
-  // 1. Suggest pose for this shot
-  if (window.PhotoboothPoseGuide) {
-    window.PhotoboothPoseGuide.setShotIndex(shotIdx);
-  }
-
-  // Two-person dynamic love/hug guidance hints
-  const grp = state.groupType || 'solo';
-  if (grp === 'couple_mf' || grp === 'love') {
-    const hints = [
-      '🤗 Pose 1: Hug tight & smile!',
-      '🫶 Pose 2: Make a hand heart together!',
-      '🥰 Pose 3: Cheek to cheek / Peace sign ✌️!'
-    ];
-    if (poseHintChip) poseHintChip.textContent = hints[shotIdx] || 'Smile together! 💖';
-  } else if (grp === 'couple_mm' || grp === 'yaari') {
-    const hints = [
-      '👊 Pose 1: Fist bump & cool face!',
-      '🤝 Pose 2: Shoulder to shoulder!',
-      '★ Pose 3: Bros victory pose!'
-    ];
-    if (poseHintChip) poseHintChip.textContent = hints[shotIdx] || 'Yaari pose! 👊';
-  } else if (grp === 'couple_ff' || grp === 'bestie') {
-    const hints = [
-      '✨ Pose 1: Wink & cute smile!',
-      '💖 Pose 2: Heart hands together 🫶!',
-      '👯‍♀️ Pose 3: Silly bestie faces!'
-    ];
-    if (poseHintChip) poseHintChip.textContent = hints[shotIdx] || 'Bestie pose! ✨';
-  }
-
-  // 2. Count down 3... 2... 1... and take photo unconditionally!
-  await runCountdown();
+  setFeedback('3 Photos ready! Click "Print Photo Strip" to print.');
 }
 
 async function runCountdown() {
-  // Always use 3-second countdown (no radio buttons needed)
   const secs = 3;
-
   for (let t = secs; t > 0; t--) {
     if (countdownOverlay) {
       countdownOverlay.textContent = t;
-      countdownOverlay.classList.add('show');
+      countdownOverlay.style.display = 'flex';
     }
     beep(500, 70);
     await wait(1000);
   }
   if (countdownOverlay) {
-    countdownOverlay.classList.remove('show');
+    countdownOverlay.style.display = 'none';
     countdownOverlay.textContent = '';
   }
   triggerFlash();
@@ -673,6 +501,7 @@ async function runCountdown() {
 
 function triggerFlash() {
   const f = document.getElementById('flash-overlay');
+  if (!f) return;
   f.classList.add('flash');
   setTimeout(() => f.classList.remove('flash'), 120);
 }
@@ -684,71 +513,22 @@ function captureFrame() {
   hiddenCanvas.height = h;
   const ctx = hiddenCanvas.getContext('2d');
 
-  // Mirror
+  // Mirror view
   ctx.save();
   ctx.translate(w, 0);
   ctx.scale(-1, 1);
   ctx.drawImage(video, 0, 0, w, h);
   ctx.restore();
 
-  // Apply visual filter
+  // Apply visual filter if any
   applyFilterToCanvas(ctx, w, h, state.filter);
-
-  // Overlay custom stickers
-  const sw = stickerCanvas.width || 1;
-  const sh = stickerCanvas.height || 1;
-  state.stickers.forEach(s => {
-    const scale = w / sw;
-    ctx.font = `${Math.round(48 * scale)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(s.emoji, s.x * w, s.y * h);
-  });
-
-  // If dynamic group mode is active, stamp distinct emoji per shot index
-  const stamp = getPhotoStampEmoji(state.groupType, state.currentShotIndex || 0);
-  if (stamp) {
-    ctx.font = `${Math.round(40 * (w / 640))}px sans-serif`;
-    ctx.textAlign = 'right';
-    ctx.fillText(stamp, w - 16, 44);
-  }
 
   return hiddenCanvas.toDataURL('image/jpeg', 0.94);
 }
 
-// ── DISTINCT PHOTO STAMPS (HUG, HEART HANDS, LOVE ACROSS 3 SHOTS) ──
-function getPhotoStampEmoji(groupType, shotIndex) {
-  const grp = groupType || 'solo';
-  if (grp === 'couple_mf' || grp === 'love') {
-    // 2 People (Love / Couple): Hug, Heart Hands, Sparkling Heart
-    return ['🤗', '🫶', '💖'][shotIndex] || '💖';
-  } else if (grp === 'couple_mm' || grp === 'yaari') {
-    // 2 People (Yaari / Bros): Fist bump, Handshake, Star
-    return ['👊', '🤝', '★'][shotIndex] || '★';
-  } else if (grp === 'couple_ff' || grp === 'bestie') {
-    // 2 People (Besties): Sparkles, Besties, Heart
-    return ['✨', '👯‍♀️', '💖'][shotIndex] || '✨';
-  } else if (grp === 'trio') {
-    return ['★', '✌️', '✨'][shotIndex] || '★';
-  } else if (grp === 'squad') {
-    return ['🔥', '★', '✌️'][shotIndex] || '★';
-  }
-  return ['📸', '✌️', '✨'][shotIndex] || '★';
-}
-
-function getPhotoStampLabel(groupType, shotIndex) {
-  const grp = groupType || 'solo';
-  if (grp === 'couple_mf' || grp === 'love') {
-    return ['HUG', 'HEART', 'LOVE'][shotIndex] || 'LOVE';
-  } else if (grp === 'couple_mm' || grp === 'yaari') {
-    return ['BROS', 'YAARI', 'STAR'][shotIndex] || 'STAR';
-  } else if (grp === 'couple_ff' || grp === 'bestie') {
-    return ['CUTE', 'BESTIES', 'SHINE'][shotIndex] || 'SHINE';
-  } else if (grp === 'trio' || grp === 'squad') {
-    return ['CREW', 'SQUAD', 'CHILL'][shotIndex] || 'SQUAD';
-  }
-  return ['SMILE', 'PEACE', 'SHINE'][shotIndex] || '';
-}
+// Clean helpers for strip rendering
+function getPhotoStampEmoji() { return ''; }
+function getPhotoStampLabel() { return ''; }
 
 function applyFilterToCanvas(ctx, w, h, filter) {
   if (filter === 'none') return;
@@ -786,30 +566,27 @@ function applyFilterToCanvas(ctx, w, h, filter) {
 function updateStripFrame(idx, dataUrl) {
   const frame = document.getElementById(`frame-${idx}`);
   if (!frame) return;
-  const stamp = getPhotoStampEmoji(state.groupType, idx);
-  const label = getPhotoStampLabel(state.groupType, idx);
-  frame.innerHTML = `
-    <img src="${dataUrl}" alt="Photo ${idx+1}" />
-    ${stamp ? `<div class="frame-emoji-stamp" title="${label || ''}">${stamp} ${label ? `<span class="stamp-lbl">${label}</span>` : ''}</div>` : ''}
-  `;
+  frame.innerHTML = `<img src="${dataUrl}" alt="Photo ${idx+1}" />`;
 }
 
 function clearStripFrame(idx) {
   const frame = document.getElementById(`frame-${idx}`);
-  frame.innerHTML = `<div class="empty-frame-text">Photo ${idx+1}</div>`;
+  if (!frame) return;
+  frame.innerHTML = `<span class="frame-placeholder">Photo ${idx+1}</span>`;
 }
 
 function resetAll() {
   state.shots = [null, null, null];
   state.stickers = [];
   drawStickers();
-  pickRandomCaption(); // Select a fresh random caption for the new session
+  pickRandomCaption();
   for (let i = 0; i < 3; i++) clearStripFrame(i);
   clearCustomLoadedImage();
-  document.getElementById('shot-steps').style.display = 'none';
+  const shotSteps = document.getElementById('shot-steps');
+  if (shotSteps) shotSteps.style.display = 'none';
   btnPrint.disabled = true;
   btnDownload.disabled = true;
-  setFeedback('Ready! Click "TAKE 3 PHOTOS" to start.');
+  setFeedback('Ready! Click "Take 3 Photos" to start.');
 }
 
 // ── INSTAGRAM QR CODE EMBEDDING (@creato4.lab) ──────────────
@@ -827,7 +604,6 @@ function getInstagramQrImage() {
       resolve(img);
     };
     img.onerror = () => {
-      // Fallback relative path if available
       img.src = 'instagram_qr.png';
       img.onload = () => { cachedQrImage = img; resolve(img); };
       img.onerror = () => resolve(null);
@@ -837,7 +613,6 @@ function getInstagramQrImage() {
 }
 
 // ── RENDER STRIP FOR PRINTING & DOWNLOAD ────────────────────
-// Layout: TOP: "PHOTO BOOTH" & "CREATO 4" | 3 THERMAL PHOTOS | BOTTOM: CAPTION + PERMANENT MAKER BRANDING + INSTAGRAM QR
 async function renderStripCanvas() {
   const stripW = 384;      // 58mm RP203 standard width (48 bytes per row)
   const padX = 10;
@@ -858,12 +633,11 @@ async function renderStripCanvas() {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, stripW, totalH);
 
-  // 1. TOP HEADER: SYNCHRONIZED WITH PREVIEW (RANDOM FUN CAPTIONS)
+  // 1. TOP HEADER: SYNCHRONIZED WITH PREVIEW
   const cap = state.currentCaption || RANDOM_CAPTIONS[0];
   const headerTitle = cap.title;
   const headerSubtitle = cap.subtitle;
   const footerLine1 = cap.footerLine1;
-  const stampEmoji = (state.groupTheme === 'love') ? '♥' : (state.groupTheme === 'bestie') ? '✨' : '★';
 
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
@@ -880,7 +654,7 @@ async function renderStripCanvas() {
     month: 'short', day: 'numeric', year: 'numeric'
   }).toUpperCase() + ' • ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
   ctx.font = '10px monospace';
-  ctx.fillText(stampEmoji ? `${stampEmoji} ${dateStr} ${stampEmoji}` : dateStr, stripW / 2, 66);
+  ctx.fillText(dateStr, stripW / 2, 66);
 
   // Divider line
   ctx.lineWidth = 2;
@@ -913,7 +687,6 @@ async function renderStripCanvas() {
             sy = (img.height - sh) / 2;
           }
 
-          // Draw image to an offscreen canvas to process contrast & sharpness
           const off = document.createElement('canvas');
           off.width = photoW;
           off.height = photoH;
@@ -924,15 +697,6 @@ async function renderStripCanvas() {
           enhanceThermalPhoto(offCtx, photoW, photoH);
 
           ctx.drawImage(off, padX, currentY);
-
-          // Stamp distinct cute emoji per photo index (e.g. Hug 🤗, Heart Hands 🫶, Love 💖 for 2 people)
-          const photoStamp = getPhotoStampEmoji(state.groupType, i);
-          if (photoStamp) {
-            ctx.fillStyle = '#000000';
-            ctx.font = 'bold 22px sans-serif';
-            ctx.textAlign = 'right';
-            ctx.fillText(photoStamp, padX + photoW - 10, currentY + 26);
-          }
           resolve();
         };
         img.src = state.shots[i];

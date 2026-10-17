@@ -4,381 +4,438 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SnapBooth — Photo Booth &amp; Thermal Printer</title>
-  <meta name="description" content="Simple photo booth with thermal printing to RP203." />
+  <meta name="description" content="Professional thermal photo booth for RP203 printers." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fredoka:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=2.8.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=3.0.0" />
 </head>
-<body class="theme-white">
+<body>
 
-  <!-- Camera flash effect -->
+  <!-- Screen Flash for Photos -->
   <div id="flash-overlay"></div>
 
-  <!-- Hidden canvas for captureFrame() — required -->
+  <!-- Hidden elements for capture and serial baud -->
   <canvas id="hidden-canvas" style="display:none;"></canvas>
-  <!-- Hidden baud input for app.js compatibility -->
   <input type="hidden" id="baud-input" value="9600" />
 
   <!-- ══ TOP HEADER ══ -->
-  <header class="main-header">
-    <div class="header-left">
-      <div class="brand">
-        <span class="brand-icon">📸</span>
-        <div class="brand-text-col">
-          <span class="brand-title">SnapBooth</span>
-          <span class="brand-sub">Prince Tagadiya • The Creato4 Lab</span>
-        </div>
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-symbol">📸</div>
+      <div class="brand-text">
+        <h1 class="brand-title">SnapBooth</h1>
+        <span class="brand-sub">Prince Tagadiya • The Creato4 Lab</span>
       </div>
-      <div class="printer-quick-status" id="quick-printer-status" onclick="openPrinterModal()">
+    </div>
+
+    <div class="header-controls">
+      <!-- Printer Status Button -->
+      <button class="printer-status-pill" id="quick-printer-status" onclick="openPrinterModal()" title="Printer connection status & settings">
         <span class="status-indicator-dot disconnected" id="quick-dot"></span>
-        <span id="quick-text">Printer Disconnected</span>
-      </div>
-    </div>
-
-    <!-- CENTER: group mode pill -->
-    <div class="header-center">
-      <button class="emoji-group-pill" id="emoji-group-pill" onclick="cycleGroupMode()" title="Tap to switch group mode">
-        <span id="group-emojis" class="group-emojis-display">🧑</span>
+        <span class="status-pill-text" id="quick-text">Printer Disconnected</span>
       </button>
-    </div>
 
-    <div class="header-right">
-      <button class="btn-header-action" onclick="openPrinterModal()">
-        🖨️ Printer Settings
+      <button class="header-btn" onclick="openPrinterModal()" title="Printer Settings">
+        <span>🖨️</span>
+        <span class="btn-text-responsive">Printer</span>
       </button>
-      <button class="btn-header-help" onclick="openGuideModal()">
-        ❓ Help
+
+      <button class="header-btn" onclick="openGuideModal()" title="Setup Guide">
+        <span>❓</span>
+        <span class="btn-text-responsive">Help</span>
       </button>
     </div>
   </header>
 
-  <!-- ══ MAIN BOOTH CONTAINER ══ -->
-  <div class="booth-container">
+  <!-- ══ MAIN LAYOUT: CAMERA (LEFT) & STRIP (RIGHT) ══ -->
+  <main class="app-main">
+    <div class="booth-grid">
 
-    <!-- LEFT: Camera -->
-    <div class="card camera-card">
-      <div class="card-top-bar">
-        <div class="step-badge">STEP 1</div>
-        <h2 class="card-heading">Take Your Photos</h2>
-        <div class="simple-tabs">
-          <button class="tab-btn active" id="tab-webcam" onclick="switchMode('camera')">📷 Live Camera</button>
-          <button class="tab-btn" id="tab-upload" onclick="switchMode('upload')">📁 Upload 3 Photos</button>
-          <button class="tab-btn" id="tab-saved" onclick="document.getElementById('saved-strip-file-input').click()">📂 Print Saved Image</button>
-          <button class="tab-btn btn-cam-toggle cam-active" id="btn-cam-toggle" onclick="toggleCameraPower()" title="Turn Camera On / Off">🛑 Turn Off Camera</button>
-        </div>
-      </div>
+      <!-- LEFT COLUMN: CAMERA / INPUT -->
+      <section class="panel-card camera-panel">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <h2 class="panel-title">Camera</h2>
+            <p class="panel-subtitle">Take 3 live shots or upload photos</p>
+          </div>
 
-      <div class="viewport-box" id="viewport-box">
-        <video id="video" autoplay playsinline muted></video>
-        <canvas id="pose-canvas"></canvas>
-        <canvas id="sticker-canvas"></canvas>
-        <div class="pose-hint-chip" id="pose-hint-chip">Stand inside the outline</div>
-        <div class="countdown-overlay" id="countdown-overlay"></div>
-        <div class="filter-label-chip" id="filter-label">Normal</div>
-        <div class="camera-off-overlay" id="camera-off-overlay" style="display:none;">
-          <span class="cam-off-icon">📷</span>
-          <p>Camera is currently turned off</p>
-          <button class="btn-turn-on-cam" onclick="toggleCameraPower()">Turn On Camera</button>
-        </div>
-      </div>
-
-      <!-- Upload fallback -->
-      <div class="upload-dropzone" id="upload-box" style="display:none">
-        <div class="upload-big-icon">🖼️</div>
-        <h3>Select 3 Photos from your Mac</h3>
-        <p>Drop images here or click the big button</p>
-        <input type="file" id="file-input" accept="image/*" multiple style="display:none" />
-        <button class="btn-big-secondary" onclick="document.getElementById('file-input').click()">
-          📂 Browse 3 Files
-        </button>
-      </div>
-
-      <!-- BIG SHOOT BUTTON -->
-      <button class="btn-mega-shoot" id="btn-shoot" onclick="startPhotoSession()">
-        <span class="shoot-emoji">📸</span>
-        <span class="shoot-big-text">TAKE 3 PHOTOS</span>
-        <span class="shoot-sub-text">Smile! Takes 3 fun shots with countdown</span>
-      </button>
-
-      <!-- Shot progress dots -->
-      <div class="shot-steps-row" id="shot-steps" style="display:none">
-        <div class="step-circle" id="shot-dot-0">Photo 1</div>
-        <div class="step-circle" id="shot-dot-1">Photo 2</div>
-        <div class="step-circle" id="shot-dot-2">Photo 3</div>
-      </div>
-    </div>
-
-    <!-- RIGHT: Strip & Print -->
-    <div class="card strip-card">
-      <div class="card-top-bar">
-        <div class="step-badge step-2">STEP 2</div>
-        <h2 class="card-heading">Your Photo Strip</h2>
-      </div>
-
-      <!-- Visual photo strip -->
-      <div class="classic-strip-wrapper" id="classic-strip">
-        <div class="sprocket-border left">
-          <div class="sprocket"></div><div class="sprocket"></div><div class="sprocket"></div>
-          <div class="sprocket"></div><div class="sprocket"></div><div class="sprocket"></div>
+          <!-- Clean segmented tabs -->
+          <div class="segmented-control">
+            <button class="segment-btn active" id="tab-webcam" onclick="switchMode('camera')">Live</button>
+            <button class="segment-btn" id="tab-upload" onclick="switchMode('upload')">Upload</button>
+            <button class="segment-btn" id="tab-saved" onclick="document.getElementById('saved-strip-file-input').click()">Saved Image</button>
+          </div>
         </div>
 
-        <div class="strip-paper" id="strip-paper">
-          <div class="strip-top-header">
-            <div class="strip-header-row">
-              <div class="strip-title-text" id="strip-top-title">PHOTO BOOTH</div>
-              <div class="strip-header-actions">
-                <button class="btn-caption-edit" onclick="openCaptionModal()" title="Edit custom caption">✏️ Edit</button>
-                <button class="btn-shuffle-caption" onclick="shuffleRandomCaption()" title="Click to shuffle random caption">🎲</button>
+        <!-- Camera Viewport -->
+        <div class="camera-viewport-wrap">
+          <div class="viewport-box" id="viewport-box">
+            <video id="video" autoplay playsinline muted></video>
+            <div class="countdown-overlay" id="countdown-overlay"></div>
+
+            <!-- Clean Camera Power Toggle -->
+            <button class="camera-power-btn cam-active" id="btn-cam-toggle" onclick="toggleCameraPower()" title="Turn Camera On / Off">
+              <span class="cam-power-dot"></span>
+              <span id="cam-toggle-text">Camera Active</span>
+            </button>
+
+            <!-- Camera Off State -->
+            <div class="camera-off-overlay" id="camera-off-overlay" style="display:none;">
+              <div class="off-icon">📷</div>
+              <h3>Camera Turned Off</h3>
+              <p>Turn on camera whenever you are ready to shoot</p>
+              <button class="btn-primary-action" onclick="toggleCameraPower()">Turn Camera On</button>
+            </div>
+          </div>
+
+          <!-- Upload Photos Fallback -->
+          <div class="upload-dropzone" id="upload-box" style="display:none">
+            <div class="upload-icon">🖼️</div>
+            <h3>Upload 3 Photos</h3>
+            <p>Select any 3 JPG or PNG images from your computer</p>
+            <input type="file" id="file-input" accept="image/*" multiple style="display:none" />
+            <button class="btn-secondary-action" onclick="document.getElementById('file-input').click()">
+              Browse 3 Files
+            </button>
+          </div>
+        </div>
+
+        <!-- Take Photos Action -->
+        <div class="panel-actions">
+          <button class="btn-main-shoot" id="btn-shoot" onclick="startPhotoSession()">
+            <span class="btn-icon">📸</span>
+            <span class="btn-label-group">
+              <span class="btn-main-label">Take 3 Photos</span>
+              <span class="btn-sub-label">Automatic 3-second countdown per shot</span>
+            </span>
+          </button>
+
+          <!-- 3-Shot Progress Bar / Dots -->
+          <div class="shot-progress-row" id="shot-steps" style="display:none">
+            <div class="shot-dot" id="shot-dot-0">Photo 1</div>
+            <div class="shot-dot" id="shot-dot-1">Photo 2</div>
+            <div class="shot-dot" id="shot-dot-2">Photo 3</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: PHOTO STRIP PREVIEW & PRINT -->
+      <section class="panel-card strip-panel">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <h2 class="panel-title">Photo Strip</h2>
+            <p class="panel-subtitle">58mm RP203 thermal print preview</p>
+          </div>
+
+          <div class="strip-header-actions">
+            <button class="action-btn-small" onclick="openCaptionModal()" title="Customize header & footer text">
+              ✏️ Caption
+            </button>
+            <button class="action-btn-small" onclick="shuffleRandomCaption()" title="Pick random caption">
+              🎲 Random
+            </button>
+          </div>
+        </div>
+
+        <!-- Authentic Thermal Paper Strip -->
+        <div class="strip-paper-container" id="classic-strip">
+          <div class="thermal-paper-strip" id="strip-paper">
+            
+            <!-- Strip Header -->
+            <div class="thermal-strip-header">
+              <div class="strip-top-title" id="strip-top-title">PHOTO BOOTH</div>
+              <div class="strip-sub-title" id="strip-creato-title">GOOD VIBES ONLY</div>
+              <div class="strip-date-line" id="strip-date-display">OCTOBER 2026</div>
+              <div class="strip-rule"></div>
+            </div>
+
+            <!-- 3 Thermal Photo Frames -->
+            <div class="strip-frames-col">
+              <div class="thermal-frame" id="frame-0">
+                <span class="frame-placeholder">Photo 1</span>
+              </div>
+              <div class="thermal-frame" id="frame-1">
+                <span class="frame-placeholder">Photo 2</span>
+              </div>
+              <div class="thermal-frame" id="frame-2">
+                <span class="frame-placeholder">Photo 3</span>
               </div>
             </div>
-            <div class="strip-creato-text" id="strip-creato-title">GOOD VIBES ONLY</div>
-            <div class="strip-date-text" id="strip-date-display">OCTOBER 2026</div>
-          </div>
 
-          <div class="strip-frame" id="frame-0"><div class="empty-frame-text">Photo 1</div></div>
-          <div class="strip-frame" id="frame-1"><div class="empty-frame-text">Photo 2</div></div>
-          <div class="strip-frame" id="frame-2"><div class="empty-frame-text">Photo 3</div></div>
-
-          <div class="strip-bottom-footer">
-            <div class="strip-have-nice-day" id="strip-footer-text">HAVE A NICE DAY</div>
-            <div class="strip-permanent-branding">★ PRINCE TAGADIYA • THE CREATO4 LAB ★</div>
-            <div class="strip-qr-box">
-              <img src="instagram_qr.png" alt="Instagram @creato4.lab QR Code" class="strip-qr-img" />
-              <div class="strip-qr-caption">📷 Scan to Follow @creato4.lab</div>
-              <div class="strip-qr-sub">instagram.com/creato4.lab</div>
+            <!-- Strip Footer -->
+            <div class="thermal-strip-footer">
+              <div class="strip-rule"></div>
+              <div class="strip-footer-caption" id="strip-footer-text">HAVE A NICE DAY</div>
+              <div class="strip-maker-brand">PRINCE TAGADIYA ★ THE CREATO4 LAB</div>
+              
+              <!-- Instagram QR Code -->
+              <div class="strip-qr-box">
+                <img src="instagram_qr.png" alt="Instagram @creato4.lab QR Code" class="strip-qr-img" />
+                <div class="strip-qr-caption">📷 Scan to Follow @creato4.lab</div>
+                <div class="strip-qr-sub">instagram.com/creato4.lab</div>
+              </div>
             </div>
+
           </div>
         </div>
 
-        <div class="sprocket-border right">
-          <div class="sprocket"></div><div class="sprocket"></div><div class="sprocket"></div>
-          <div class="sprocket"></div><div class="sprocket"></div><div class="sprocket"></div>
+        <!-- Strip Actions -->
+        <div class="panel-actions">
+          <button class="btn-main-print" id="btn-print" onclick="doPrint()">
+            <span class="btn-icon">🖨️</span>
+            <span class="btn-label-group">
+              <span class="btn-main-label">Print Photo Strip</span>
+              <span class="btn-sub-label">Direct print to RP203 thermal paper</span>
+            </span>
+          </button>
+
+          <div class="secondary-actions-grid">
+            <button class="btn-secondary-action" id="btn-download" onclick="saveStripJpg()" disabled title="Download photo strip as JPG">
+              💾 Save JPG
+            </button>
+            <button class="btn-secondary-action" onclick="document.getElementById('saved-strip-file-input').click()" title="Open an old photo or strip from your computer to print">
+              📂 Open Image
+            </button>
+            <button class="btn-secondary-action btn-danger" onclick="resetAll()" title="Reset and take new photos">
+              🔄 Retake
+            </button>
+          </div>
+
+          <!-- Status Bar -->
+          <div class="feedback-status-bar" id="feedback-status">
+            Ready to shoot! Click "Take 3 Photos" to begin.
+          </div>
         </div>
-      </div>
+      </section>
 
-      <!-- BIG PRINT BUTTON -->
-      <button class="btn-mega-print" id="btn-print" onclick="doPrint()">
-        <span class="print-emoji">🖨️</span>
-        <span class="print-big-text">PRINT STRIP</span>
-        <span class="print-sub-text">Sends directly to RP203 thermal paper</span>
-      </button>
-
-      <!-- Sub-actions -->
-      <div class="strip-sub-actions">
-        <button class="btn-secondary-action" id="btn-download" onclick="saveStripJpg()" disabled>
-          💾 Save Image
-        </button>
-        <button class="btn-secondary-action" onclick="document.getElementById('saved-strip-file-input').click()" title="Open an old saved photo or strip from your computer to print">
-          📂 Print Saved Image
-        </button>
-        <button class="btn-secondary-action btn-reset" onclick="resetAll()">
-          🔄 New Photos
-        </button>
-      </div>
-
-      <!-- Status -->
-      <div class="feedback-status-box" id="feedback-status">
-        Ready! Take 3 photos on the left to start.
-      </div>
     </div>
 
-  </div>
-
-  <!-- ══ RECENT PRINTS HISTORY & SAVED STRIPS ══ -->
-  <section class="history-section" id="history-section">
-    <div class="history-header">
-      <div class="history-title-wrap">
-        <span class="history-icon">🕒</span>
-        <h3 class="history-heading">Saved Photo Strips</h3>
-        <span class="history-badge">Instant Re-Print &amp; Download</span>
-      </div>
-      <div class="history-header-actions">
-        <input type="file" id="saved-strip-file-input" accept="image/*" style="display:none" onchange="handleSavedStripFileSelect(event)" />
-        <button class="btn-open-saved-strip" onclick="document.getElementById('saved-strip-file-input').click()">
-          📂 Open Saved Image to Print
-        </button>
-        <button class="btn-clear-history" id="btn-clear-history" onclick="clearHistory()" title="Clear history">Clear History</button>
-      </div>
-    </div>
-    <div class="history-cards-row" id="history-cards-row">
-      <!-- Populated dynamically by app.js -->
-    </div>
-  </section>
-
-  <!-- ══ PRINTER MODAL (Simple & Clean) ══ -->
-  <div class="clean-modal-overlay" id="printer-modal" style="display:none" onclick="closeModalOnOverlay(event, 'printer-modal')">
-    <div class="clean-modal-box">
-      <div class="modal-header-simple">
-        <h3>🖨️ RP203 Thermal Printer</h3>
-        <button class="btn-modal-close" onclick="closePrinterModal()">✕</button>
-      </div>
-
-      <div class="modal-body-simple">
-
-        <!-- Connection status -->
-        <div class="printer-status-bar" id="modal-status-bar">
-          <span class="status-indicator-dot disconnected" id="modal-dot"></span>
-          <span id="modal-status-text"><strong>Printer Disconnected</strong></span>
-        </div>
-
-        <!-- BIG CONNECT BUTTON -->
-        <button class="btn-mega-connect" id="btn-modal-connect" onclick="connectPrinterWebSerial()">
-          🔌 Connect Printer (9600 Baud)
-        </button>
-
-        <!-- Feedback banner -->
-        <div id="modal-feedback-banner" class="modal-feedback-banner" style="display:none"></div>
-
-        <!-- Heat slider -->
-        <div class="setting-item" style="margin-top:14px;">
-          <label>Print Darkness (Heat: <span id="heat-val-label">15</span> / 15)</label>
-          <div class="slider-wrapper">
-            <span>Light</span>
-            <input type="range" id="heat-slider" min="1" max="15" value="15" class="clean-slider" />
-            <span>Dark</span>
+    <!-- ══ SAVED STRIPS & RECENT PRINTS ══ -->
+    <section class="history-panel">
+      <div class="history-panel-header">
+        <div class="history-header-left">
+          <span class="history-icon">🕒</span>
+          <div>
+            <h3 class="history-title">Saved Photo Strips</h3>
+            <p class="history-sub">Re-print or download previously taken and opened photo strips</p>
           </div>
         </div>
 
-        <!-- Test & Calibration buttons -->
-        <div class="row-2col" style="margin-top:12px;">
-          <button class="btn-test-print" onclick="runTestPrint()">🧾 Test Receipt</button>
-          <button class="btn-test-print" style="background:#0284c7;color:#fff;font-weight:700;" onclick="runCalibrationWebSerial()">📐 Calibrate Print</button>
+        <div class="history-header-right">
+          <input type="file" id="saved-strip-file-input" accept="image/*" style="display:none" onchange="handleSavedStripFileSelect(event)" />
+          <button class="btn-secondary-action" onclick="document.getElementById('saved-strip-file-input').click()">
+            📂 Open Saved Image to Print
+          </button>
+          <button class="action-btn-text" id="btn-clear-history" onclick="clearHistory()">
+            Clear All
+          </button>
         </div>
-        <div class="row-2col" style="margin-top:6px;">
-          <button class="btn-test-print" style="background:#6366f1;color:#fff;font-weight:700;" onclick="runTestImagePrint()">🖼️ Test Image</button>
-          <button class="btn-test-print" style="background:#0f172a;color:#fff;" onclick="runBlackBoxTest()">⬛ Black Box</button>
+      </div>
+
+      <div class="history-cards-scroll" id="history-cards-row">
+        <!-- Rendered by app.js -->
+      </div>
+    </section>
+  </main>
+
+  <!-- ══ PRINTER SETTINGS MODAL ══ -->
+  <div class="modal-overlay" id="printer-modal" style="display:none" onclick="closeModalOnOverlay(event, 'printer-modal')">
+    <div class="modal-card">
+      <div class="modal-card-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon">🖨️</span>
+          <div>
+            <h3 class="modal-title">RP203 Printer Settings</h3>
+            <p class="modal-sub">Direct USB-to-TTL Serial Connection (9600 Baud)</p>
+          </div>
         </div>
-        <div style="margin-top:6px;">
-          <button class="btn-test-print" style="width:100%;background:#f8fafc;" onclick="feedPaperOnly()">📜 Feed Paper (Advance 6 Lines)</button>
+        <button class="modal-close-btn" onclick="closePrinterModal()">✕</button>
+      </div>
+
+      <div class="modal-card-body">
+        <!-- Connection Banner -->
+        <div class="printer-connection-box" id="modal-status-bar">
+          <div class="connection-status-indicator">
+            <span class="status-indicator-dot disconnected" id="modal-dot"></span>
+            <span id="modal-status-text">Printer Disconnected</span>
+          </div>
+          <button class="btn-connect-printer" id="btn-modal-connect" onclick="connectPrinterWebSerial()">
+            Connect Printer
+          </button>
         </div>
 
-        <!-- Checklist -->
-        <div class="baud-fix-note" style="margin-top:14px;">
-          <strong>⚡ Quick Checklist</strong>
-          <ul style="margin:6px 0 0 0; padding-left:18px; font-size:13px; color:#475569; line-height:1.7;">
-            <li>Wiring: Adapter <strong>TX → Printer RX</strong>, Adapter <strong>RX → Printer TX</strong>, <strong>GND → GND</strong></li>
-            <li>Power: <strong>9V–12V 2A external adapter</strong> (not USB power alone)</li>
-            <li>Paper: Shiny thermal side <strong>faces the print head</strong></li>
-            <li>Use <strong>Google Chrome</strong> or <strong>Edge</strong> (not Safari)</li>
+        <div id="modal-feedback-banner" class="modal-alert-banner" style="display:none"></div>
+
+        <!-- Darkness / Heat Slider -->
+        <div class="setting-row">
+          <div class="setting-label-col">
+            <label for="heat-slider" class="setting-name">Print Darkness</label>
+            <span class="setting-desc">Calibrated burn heating level (<span id="heat-val-label">15</span> / 15)</span>
+          </div>
+          <div class="slider-control-group">
+            <span class="slider-end-label">Light</span>
+            <input type="range" id="heat-slider" min="1" max="15" value="15" class="clean-range-slider" />
+            <span class="slider-end-label">Dark</span>
+          </div>
+        </div>
+
+        <!-- Essential Printer Hardware Actions -->
+        <div class="printer-quick-tools">
+          <button class="tool-btn" onclick="runTestPrint()">
+            🧾 Print Test Receipt
+          </button>
+          <button class="tool-btn" onclick="feedPaperOnly()">
+            📜 Feed Paper (6 Lines)
+          </button>
+        </div>
+
+        <!-- Hardware Checklist -->
+        <div class="hardware-tip-card">
+          <div class="tip-title">⚡ Hardware Wiring Checklist</div>
+          <ul class="tip-list">
+            <li>Adapter <strong>TX → Printer RX</strong>, Adapter <strong>RX → Printer TX</strong>, <strong>GND → GND</strong></li>
+            <li>External Power: <strong>9V–12V 2A</strong> or <strong>5V 3A</strong> connected to printer power terminal</li>
+            <li>Thermal paper roll: shiny coated side <strong>faces the printer head</strong></li>
+            <li>Use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> for Web Serial API</li>
           </ul>
         </div>
-
       </div>
 
-      <div class="modal-footer-simple">
-        <button class="btn-primary-simple" onclick="closePrinterModal()">Done</button>
+      <div class="modal-card-footer">
+        <button class="btn-primary-action" onclick="closePrinterModal()">Done</button>
       </div>
     </div>
   </div>
 
   <!-- ══ CUSTOM CAPTION MODAL ══ -->
-  <div class="clean-modal-overlay" id="caption-modal" style="display:none" onclick="closeModalOnOverlay(event, 'caption-modal')">
-    <div class="clean-modal-box caption-modal-box">
-      <div class="modal-header-simple">
-        <h3>✏️ Custom Strip Caption</h3>
-        <button class="btn-modal-close" onclick="closeCaptionModal()">✕</button>
+  <div class="modal-overlay" id="caption-modal" style="display:none" onclick="closeModalOnOverlay(event, 'caption-modal')">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-card-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon">✏️</span>
+          <div>
+            <h3 class="modal-title">Customize Strip Text</h3>
+            <p class="modal-sub">Printed on the top and bottom of your thermal strip</p>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="closeCaptionModal()">✕</button>
       </div>
-      <div class="modal-body-simple">
-        <p class="caption-guide-note">Type custom text below. Limited to <strong>28 characters</strong> to fit cleanly without line-wrapping on 32-column thermal paper.</p>
-        
-        <div class="caption-input-group">
-          <div class="caption-input-header">
+
+      <div class="modal-card-body">
+        <div class="form-group">
+          <div class="form-label-row">
             <label for="custom-caption-title">Header Title</label>
-            <span class="char-counter" id="count-title">0 / 28</span>
+            <span class="char-count" id="count-title">0 / 28</span>
           </div>
-          <input type="text" id="custom-caption-title" maxlength="28" placeholder="e.g. PHOTO BOOTH" oninput="updateCharCount('title')" />
+          <input type="text" id="custom-caption-title" maxlength="28" placeholder="e.g. PHOTO BOOTH" oninput="updateCharCount('title')" class="clean-text-input" />
         </div>
 
-        <div class="caption-input-group">
-          <div class="caption-input-header">
-            <label for="custom-caption-sub">Top Tagline / Subtitle</label>
-            <span class="char-counter" id="count-sub">0 / 28</span>
+        <div class="form-group">
+          <div class="form-label-row">
+            <label for="custom-caption-sub">Top Tagline</label>
+            <span class="char-count" id="count-sub">0 / 28</span>
           </div>
-          <input type="text" id="custom-caption-sub" maxlength="28" placeholder="e.g. GOOD VIBES ONLY" oninput="updateCharCount('sub')" />
+          <input type="text" id="custom-caption-sub" maxlength="28" placeholder="e.g. GOOD VIBES ONLY" oninput="updateCharCount('sub')" class="clean-text-input" />
         </div>
 
-        <div class="caption-input-group">
-          <div class="caption-input-header">
-            <label for="custom-caption-footer">Bottom Footer Line</label>
-            <span class="char-counter" id="count-footer">0 / 28</span>
+        <div class="form-group">
+          <div class="form-label-row">
+            <label for="custom-caption-footer">Bottom Footer</label>
+            <span class="char-count" id="count-footer">0 / 28</span>
           </div>
-          <input type="text" id="custom-caption-footer" maxlength="28" placeholder="e.g. HAVE A NICE DAY" oninput="updateCharCount('footer')" />
-        </div>
-      </div>
-      <div class="modal-footer-simple" style="display:flex; justify-content:space-between; gap:10px;">
-        <button class="btn-secondary-action" onclick="shuffleRandomCaption(); closeCaptionModal();" style="padding:0.6rem 1rem;">🎲 Pick Random</button>
-        <button class="btn-primary-simple" onclick="applyCustomCaption()" style="padding:0.6rem 1.4rem;">✅ Apply Caption</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ DRIVER GUIDE MODAL (WINDOWS & MAC) ══ -->
-  <div class="clean-modal-overlay" id="guide-modal" style="display:none" onclick="closeModalOnOverlay(event, 'guide-modal')">
-    <div class="clean-modal-box">
-      <div class="modal-header-simple">
-        <h3>🔌 Windows &amp; Mac USB Setup</h3>
-        <button class="btn-modal-close" onclick="closeGuideModal()">✕</button>
-      </div>
-      <div class="modal-body-simple guide-text">
-        <h4>🪟 Windows (10 / 11) — Plug &amp; Play:</h4>
-        <p>1. Plug your USB-to-TTL adapter into any USB port. Windows automatically detects it as <strong>COM3</strong>, <strong>COM4</strong>, etc.</p>
-        <p>2. Open in <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>.</p>
-        <p>3. Click <strong>Printer Settings → Connect Printer</strong>, pick your COM port from the list, and you're ready to print!</p>
-
-        <h4 style="margin-top:14px;">🍎 Mac Setup:</h4>
-        <p>If your USB adapter isn't listed in Chrome, install the CH340 driver via terminal:</p>
-        <pre class="code-pill">brew install --cask wch-ch34x-usb-serial-driver</pre>
-        <p>Go to <strong>System Settings &gt; Privacy &amp; Security</strong>, click <em>Allow</em>, and restart your Mac.</p>
-
-        <h4 style="margin-top:14px;">⚡ Hardware Checklist:</h4>
-        <p>• Wiring: Adapter <strong>TX → Printer RX</strong>, Adapter <strong>RX → Printer TX</strong>, <strong>GND → GND</strong></p>
-        <p>• Power: <strong>5V 3A</strong> (or 9V/12V 2A+) external adapter connected to printer power pins</p>
-      </div>
-      <div class="modal-footer-simple">
-        <button class="btn-primary-simple" onclick="closeGuideModal()">Got It</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ LIVE PRINT OVERLAY ══ -->
-  <div class="live-print-overlay" id="live-print-overlay" style="display:none">
-    <div class="live-print-card">
-      <div class="live-print-header">
-        <div class="printer-hardware-icon">🖨️</div>
-        <div class="live-print-title-group">
-          <h2>Printing your photo strip...</h2>
-          <p id="live-print-subtitle">Prince Tagadiya • The Creato4 Lab • RP203 @ 9600 baud</p>
+          <input type="text" id="custom-caption-footer" maxlength="28" placeholder="e.g. HAVE A NICE DAY" oninput="updateCharCount('footer')" class="clean-text-input" />
         </div>
       </div>
 
-      <div class="print-progress-bar-wrap">
-        <div class="print-progress-bar-fill" id="print-progress-fill" style="width: 0%"></div>
-      </div>
-      <div class="print-progress-meta">
-        <span id="print-pct-text">0%</span>
-        <span id="print-bytes-text">0 / 0 bytes</span>
-      </div>
-
-      <div class="printer-physical-mouth">
-        <div class="printer-slot-opening"></div>
-        <div class="printer-paper-chute" id="printer-paper-chute">
-          <canvas id="live-print-canvas" width="384" height="1200"></canvas>
-        </div>
-      </div>
-
-      <div class="live-print-actions">
-        <button class="btn-cancel-print" id="btn-cancel-print" onclick="cancelPrinting()">
-          ⛔ Cancel Print
+      <div class="modal-card-footer split">
+        <button class="btn-secondary-action" onclick="shuffleRandomCaption(); closeCaptionModal();">
+          🎲 Random
+        </button>
+        <button class="btn-primary-action" onclick="applyCustomCaption()">
+          Apply Caption
         </button>
       </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.js"></script>
+  <!-- ══ GUIDE MODAL ══ -->
+  <div class="modal-overlay" id="guide-modal" style="display:none" onclick="closeModalOnOverlay(event, 'guide-modal')">
+    <div class="modal-card">
+      <div class="modal-card-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon">📖</span>
+          <div>
+            <h3 class="modal-title">RP203 Setup Guide</h3>
+            <p class="modal-sub">Plug-and-play setup for Windows and macOS</p>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="closeGuideModal()">✕</button>
+      </div>
+
+      <div class="modal-card-body">
+        <div class="os-guide-section">
+          <h4>🪟 Windows (10 &amp; 11) — Plug &amp; Play:</h4>
+          <ol class="guide-steps">
+            <li>Plug your USB-to-TTL adapter into any USB port. Windows auto-assigns it (e.g. <code>COM3</code> or <code>COM4</code>).</li>
+            <li>Open this app in <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>.</li>
+            <li>Click <strong>Printer → Connect Printer</strong>, select your USB Serial device from the popup, and you're ready!</li>
+          </ol>
+        </div>
+
+        <div class="os-guide-section" style="margin-top:16px;">
+          <h4>🍎 macOS Setup:</h4>
+          <p>If your CH340 adapter doesn't show in Chrome, run in terminal:</p>
+          <pre class="code-box">brew install --cask wch-ch34x-usb-serial-driver</pre>
+          <p>Go to <em>System Settings &gt; Privacy &amp; Security</em>, click <em>Allow</em>, and restart your Mac.</p>
+        </div>
+      </div>
+
+      <div class="modal-card-footer">
+        <button class="btn-primary-action" onclick="closeGuideModal()">Got It</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ LIVE THERMAL PRINT KIOSK OVERLAY ══ -->
+  <div class="live-print-overlay" id="live-print-overlay" style="display:none">
+    <div class="live-print-card">
+      <div class="live-print-header">
+        <div class="printer-icon-wrap">🖨️</div>
+        <div>
+          <h2 class="live-title">Printing Photo Strip</h2>
+          <p class="live-sub" id="live-print-subtitle">Prince Tagadiya • The Creato4 Lab • RP203 @ 9600 Baud</p>
+        </div>
+      </div>
+
+      <div class="print-progress-wrap">
+        <div class="print-progress-track">
+          <div class="print-progress-fill" id="print-progress-fill" style="width: 0%"></div>
+        </div>
+        <div class="print-meta-row">
+          <span id="print-pct-text">0%</span>
+          <span id="print-bytes-text">0 / 0 bytes</span>
+        </div>
+      </div>
+
+      <!-- Real Paper Output Chute -->
+      <div class="printer-chute-housing">
+        <div class="chute-slot"></div>
+        <div class="printer-paper-chute" id="printer-paper-chute">
+          <canvas id="live-print-canvas" width="384" height="1200"></canvas>
+        </div>
+      </div>
+
+      <div class="live-actions">
+        <button class="btn-secondary-action btn-danger" id="btn-cancel-print" onclick="cancelPrinting()">
+          Cancel Print
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="qrcode.min.js"></script>
-  <script src="pose_guide.js"></script>
   <script src="receipt-printer-encoder.umd.js"></script>
-  <script src="app.js?v=5.1.0"></script>
+  <script src="app.js?v=5.2.0"></script>
 </body>
 </html>
