@@ -25,7 +25,11 @@ const state = {
   baudRate: 9600,
   heatEnergy: 15,
   isPrintCancelled: false,
-  currentCaption: null
+  currentCaption: null,
+
+  // Custom Saved Image / Strip
+  customLoadedCanvas: null,
+  customLoadedTitle: null
 };
 window.PhotoboothAppState = state;
 // ── DOM References ──────────────────────────────────────────
@@ -801,14 +805,39 @@ function resetAll() {
   drawStickers();
   pickRandomCaption(); // Select a fresh random caption for the new session
   for (let i = 0; i < 3; i++) clearStripFrame(i);
+  clearCustomLoadedImage();
   document.getElementById('shot-steps').style.display = 'none';
   btnPrint.disabled = true;
   btnDownload.disabled = true;
   setFeedback('Ready! Click "TAKE 3 PHOTOS" to start.');
 }
 
+// ── INSTAGRAM QR CODE EMBEDDING (@creato4.lab) ──────────────
+// Pure monochrome 1-bit QR code for https://www.instagram.com/creato4.lab/
+const INSTAGRAM_QR_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEX///8AAABVwtN+AAAACXBIWXMAAA7EAAAOxAGVKw4bAAABjUlEQVRYhdWYwZGDMAxF5eHAkRJcCqXZpVEKJXDkwETRk8zsUkGEDhmilwOyv77liHqILPvaZToX1TJSvyeXWLRyLbt9WmKXEqncZFbdGs9rJ1e1jFR+YpXsK7mj9vcQmQ4WfrJteAcJ7ehRLWv1oKOHqlKSaEoUv/aP9enenh2ck4yw9d/sVyeFPCMl4dW3prYLm31D8V6VGWRm4ubdlV1QVzwR8v85seWtW/sIfq0oOj5Z68yE6DxRz+lq+duFrARRWD2T0o0y29loseiQS1bCksepSMxUh/8NT8xKfG5C5NXPF8sVPaPS3ATPu0z37ny1e5+incTEPY/z0EghF4azSWrCwEQ97MWH4piv+XFuwhdyuKHFbj2LTUpuwoAnkPDE6vWgnRTEV3kJ5zv83RnzUpOIwiEufsq04X+pSQwe5XY+nmNjUpMx6N/z6EKJther5iZxO/znfDqG0xcQWlOZn3WMz/oG4v96+I1F4p7VcxPXDtMT/x/IuCgwqWYmd58yqeoV9yx9dHBC8gWiefX8zL2j1wAAAABJRU5ErkJggg==';
+
+let cachedQrImage = null;
+function getInstagramQrImage() {
+  if (cachedQrImage) return Promise.resolve(cachedQrImage);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      cachedQrImage = img;
+      resolve(img);
+    };
+    img.onerror = () => {
+      // Fallback relative path if available
+      img.src = 'instagram_qr.png';
+      img.onload = () => { cachedQrImage = img; resolve(img); };
+      img.onerror = () => resolve(null);
+    };
+    img.src = INSTAGRAM_QR_DATA_URL;
+  });
+}
+
 // ── RENDER STRIP FOR PRINTING & DOWNLOAD ────────────────────
-// Layout: TOP: "PHOTO BOOTH" & "CREATO 4" | 3 THERMAL PHOTOS | BOTTOM: "HAVE A NICE DAY"
+// Layout: TOP: "PHOTO BOOTH" & "CREATO 4" | 3 THERMAL PHOTOS | BOTTOM: CAPTION + PERMANENT MAKER BRANDING + INSTAGRAM QR
 async function renderStripCanvas() {
   const stripW = 384;      // 58mm RP203 standard width (48 bytes per row)
   const padX = 10;
@@ -816,7 +845,7 @@ async function renderStripCanvas() {
   const photoH = 260;     // 260 dots (sharp 1.4:1 ratio)
   const headerH = 82;     // Space for PHOTO BOOTH + CREATO 4 + Date + Line
   const photoGap = 12;    // Clean gap between photos
-  const footerH = 78;     // Space for Line + HAVE A NICE DAY + Prince Tagadiya • The Creato4 Lab
+  const footerH = 224;    // Space for Line + Caption + Prince Tagadiya • The Creato4 Lab + Instagram QR + URL
 
   const totalH = headerH + (3 * photoH) + (2 * photoGap) + footerH;
 
@@ -834,7 +863,6 @@ async function renderStripCanvas() {
   const headerTitle = cap.title;
   const headerSubtitle = cap.subtitle;
   const footerLine1 = cap.footerLine1;
-  const footerLine2 = cap.footerLine2 || '';
   const stampEmoji = (state.groupTheme === 'love') ? '♥' : (state.groupTheme === 'bestie') ? '✨' : '★';
 
   ctx.fillStyle = '#000000';
@@ -925,7 +953,7 @@ async function renderStripCanvas() {
     currentY += photoH + photoGap;
   }
 
-  // 3. BOTTOM FOOTER: CAPTION + PERMANENT MAKER BRANDING
+  // 3. BOTTOM FOOTER: CAPTION + PERMANENT MAKER BRANDING + INSTAGRAM QR CODE
   const footerDividerY = currentY - photoGap + 8;
   ctx.lineWidth = 2;
   ctx.strokeStyle = '#000000';
@@ -943,14 +971,39 @@ async function renderStripCanvas() {
 
   // Permanent Signature Branding requested by user (always printed on paper)
   ctx.font = 'bold 11px monospace';
-  ctx.fillText('PRINCE TAGADIYA  ★  THE CREATO4 LAB', stripW / 2, footerDividerY + 45);
+  ctx.fillText('PRINCE TAGADIYA  ★  THE CREATO4 LAB', stripW / 2, footerDividerY + 44);
 
-  // Subtle clean bottom boundary line
+  // Divider line before QR code
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(padX + 24, footerDividerY + 58);
-  ctx.lineTo(stripW - padX - 24, footerDividerY + 58);
+  ctx.moveTo(padX + 24, footerDividerY + 54);
+  ctx.lineTo(stripW - padX - 24, footerDividerY + 54);
   ctx.stroke();
+
+  // Draw Instagram QR Code (pure crisp monochrome dots)
+  const qrImg = await getInstagramQrImage();
+  const qrSize = 108; // 108x108 dots is sharp & perfectly scannable on 58mm thermal paper
+  const qrX = Math.round((stripW - qrSize) / 2);
+  const qrY = footerDividerY + 62;
+
+  if (qrImg) {
+    // White background card behind QR code with clean border
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(qrX - 4, qrY - 4, qrSize + 8, qrSize + 8);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(qrX - 4, qrY - 4, qrSize + 8, qrSize + 8);
+
+    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+  }
+
+  // QR Captions
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('📷 SCAN TO FOLLOW @creato4.lab', stripW / 2, qrY + qrSize + 16);
+
+  ctx.font = '9px monospace';
+  ctx.fillText('instagram.com/creato4.lab', stripW / 2, qrY + qrSize + 28);
 
   return canvas;
 }
@@ -1242,6 +1295,22 @@ async function loadSampleStripForTesting() {
 }
 
 async function doPrint() {
+  if (state.customLoadedCanvas) {
+    if (!state.printerPort) {
+      setFeedback('🔍 Select your USB-to-TTL adapter in the browser popup...');
+      try {
+        await connectPrinterWebSerial();
+      } catch {}
+      if (!state.printerPort) {
+        setFeedback('❌ Printer not connected yet. Click "Printer Settings" to connect.', 'error');
+        openPrinterModal();
+        return;
+      }
+    }
+    await printCanvasWithLiveKiosk(state.customLoadedCanvas, state.customLoadedTitle || 'Saved Photo');
+    return;
+  }
+
   // If user hasn't taken photos yet, automatically load demo photos so printing works immediately!
   if (!state.shots.some(s => s !== null)) {
     setFeedback('ℹ️ Loading demo photo strip for test print...', 'busy');
@@ -1260,9 +1329,36 @@ async function doPrint() {
     }
   }
 
+  const canvas = await renderStripCanvas();
+
+  // Automatically record to Prints history
+  saveHistoryItem({
+    dataUrl: canvas.toDataURL('image/jpeg', 0.9),
+    subtitle: state.currentCaption?.subtitle || 'CREATO 4',
+    timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    timestamp: Date.now()
+  });
+
+  await printCanvasWithLiveKiosk(canvas, state.currentCaption?.subtitle || 'Photo Strip');
+}
+
+// ── CORE ESC/POS THERMAL PRINTING ENGINE WITH LIVE KIOSK ANIMATION ──
+async function printCanvasWithLiveKiosk(canvas, jobTitle = 'Photo Strip') {
+  if (!state.printerPort) {
+    setFeedback('🔍 Select your USB-to-TTL adapter in the browser popup...');
+    try {
+      await connectPrinterWebSerial();
+    } catch {}
+    if (!state.printerPort) {
+      setFeedback('❌ Printer not connected yet. Click "Printer Settings" to connect.', 'error');
+      openPrinterModal();
+      return;
+    }
+  }
+
   btnPrint.disabled = true;
   state.isPrintCancelled = false;
-  setFeedback('🖨️ Processing photos and preparing thermal strip...', 'busy');
+  setFeedback(`🖨️ Processing ${jobTitle} and preparing thermal strip...`, 'busy');
 
   const liveOverlay = document.getElementById('live-print-overlay');
   const liveCanvas = document.getElementById('live-print-canvas');
@@ -1274,16 +1370,6 @@ async function doPrint() {
 
   let writer = null;
   try {
-    const canvas = await renderStripCanvas();
-
-    // Automatically record to Last 3 Prints history
-    saveHistoryItem({
-      dataUrl: canvas.toDataURL('image/jpeg', 0.9),
-      subtitle: state.currentCaption?.subtitle || 'CREATO 4',
-      timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timestamp: Date.now()
-    });
-
     // 1. Generate ESC/POS raster bytes using Floyd-Steinberg ditherer
     const ctx = canvas.getContext('2d');
     const dithered = ditherFloydSteinberg(ctx, canvas.width, canvas.height);
@@ -1373,7 +1459,7 @@ async function doPrint() {
 
     const totalBytes = encodedBytes.length;
     let bytesSent = 0;
-    setFeedback('🖨️ Printing photo strip...', 'busy');
+    setFeedback(`🖨️ Printing ${jobTitle}...`, 'busy');
 
     // Stream in 32-byte chunks with 25ms delay — prevents RP203 FIFO overflow (causes dots/garbage)
     const CHUNK = 32;
@@ -1391,7 +1477,7 @@ async function doPrint() {
       if (progressFill) progressFill.style.width = `${pct}%`;
       if (pctText) pctText.textContent = `${pct}%`;
       if (bytesText) bytesText.textContent = `${bytesSent} / ${totalBytes} bytes (${pct}%)`;
-      setFeedback(`🖨️ Printing... ${pct}%`, 'busy');
+      setFeedback(`🖨️ Printing ${jobTitle}... ${pct}%`, 'busy');
       updateLiveThermalPreview(pct);
     }
 
@@ -1403,7 +1489,7 @@ async function doPrint() {
       btnCancel.textContent = '🎉 Done / Close';
     }
 
-    setFeedback('🎉 Strip printed successfully! Collect your photos from the RP203.', 'success');
+    setFeedback(`🎉 "${jobTitle}" printed successfully! Collect your print from the RP203.`, 'success');
     await wait(2200);
     if (liveOverlay) liveOverlay.style.display = 'none';
   } catch (err) {
@@ -2011,21 +2097,25 @@ async function runAutoBaudSweep() {
 // ── SAVE JPG STRIP ──────────────────────────────────────────
 async function saveStripJpg() {
   setFeedback('⏳ Generating strip image...');
-  const canvas = await renderStripCanvas();
-  
-  // Record to history
-  saveHistoryItem({
-    dataUrl: canvas.toDataURL('image/jpeg', 0.9),
-    subtitle: state.currentCaption?.subtitle || 'CREATO 4',
-    timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    timestamp: Date.now()
-  });
+  let canvas;
+  if (state.customLoadedCanvas) {
+    canvas = state.customLoadedCanvas;
+  } else {
+    canvas = await renderStripCanvas();
+    // Record to history
+    saveHistoryItem({
+      dataUrl: canvas.toDataURL('image/jpeg', 0.9),
+      subtitle: state.currentCaption?.subtitle || 'CREATO 4',
+      timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: Date.now()
+    });
+  }
 
   const a = document.createElement('a');
   a.download = `photobooth-strip-${Date.now()}.jpg`;
   a.href = canvas.toDataURL('image/jpeg', 0.95);
   a.click();
-  setFeedback('✅ Photo strip saved to your Mac and recorded in History!');
+  setFeedback('✅ Photo strip saved to your computer and recorded in History!');
 }
 
 // ── MODALS & HELPERS ────────────────────────────────────────
@@ -2077,7 +2167,7 @@ function beep(freq, duration) {
   } catch {}
 }
 
-// ── RECENT PRINTS HISTORY (LAST 3 PHOTO STRIPS) ────────────
+// ── RECENT PRINTS HISTORY & SAVED IMAGES PRINT ENGINE ────────
 const HISTORY_STORAGE_KEY = 'rp203_strip_history';
 
 function escapeHtml(str) {
@@ -2101,7 +2191,7 @@ function saveHistoryItem(item) {
       return;
     }
     hist.unshift(item);
-    hist = hist.slice(0, 3); // Retain only the last 3 photo strips
+    hist = hist.slice(0, 12); // Retain up to 12 photo strips for easy re-printing
     localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(hist));
     renderHistoryUI();
   } catch (e) {
@@ -2124,7 +2214,7 @@ function renderHistoryUI() {
     container.innerHTML = `
       <div class="history-empty-box">
         <span class="history-empty-icon">📸</span>
-        <p>No recent strips yet. Take photos and print your first strip!</p>
+        <p>No saved strips yet. Take photos or open an old saved image to print!</p>
       </div>
     `;
     return;
@@ -2142,14 +2232,16 @@ function renderHistoryUI() {
           <div class="hist-time">🕒 ${escapeHtml(item.timeStr || 'Recently')}</div>
         </div>
         <div class="hist-actions">
-          <button class="btn-hist-reprint" onclick="reprintFromHistory(${idx})">🖨️ Re-Print</button>
-          <a class="btn-hist-download" href="${item.dataUrl}" download="strip_${item.timestamp || Date.now()}.jpg">💾 Save</a>
+          <button class="btn-hist-reprint" onclick="reprintFromHistory(${idx})" title="Directly print to RP203 thermal printer">🖨️ Print Now</button>
+          <button class="btn-hist-load" onclick="loadHistoryItemToBooth(${idx})" title="Preview in Photo Booth">👁️ Load</button>
+          <a class="btn-hist-download" href="${item.dataUrl}" download="strip_${item.timestamp || Date.now()}.jpg" title="Save this photo strip to disk">💾 Save</a>
         </div>
       </div>
     </div>
   `).join('');
 }
 
+// ── REPRINT DIRECTLY FROM SAVED HISTORY ─────────────────────
 async function reprintFromHistory(idx) {
   const hist = getHistory();
   if (!hist[idx]) return;
@@ -2164,29 +2256,131 @@ async function reprintFromHistory(idx) {
     const ctx = c.getContext('2d');
     ctx.drawImage(img, 0, 0);
 
-    try {
-      const writer = await acquireSafeWriter();
-      await sendHardwareInit(writer);
-      const heatingTime = Math.min(200, 70 + (state.heatEnergy * 10));
-      await writer.write(new Uint8Array([0x1B, 0x37, 0x04, heatingTime, 0x28]));
-      await wait(30);
-
-      const dithered = ditherFloydSteinberg(ctx, c.width, c.height);
-      const encodedBytes = buildEscPosBytes(dithered, state.heatEnergy);
-
-      const CHUNK = 32;
-      for (let i = 0; i < encodedBytes.length; i += CHUNK) {
-        const chunk = encodedBytes.subarray(i, Math.min(i + CHUNK, encodedBytes.length));
-        await writer.write(chunk);
-        await wait(25);
-      }
-      setFeedback('🎉 Re-print complete! Strip sent to RP203.', 'success');
-    } catch (err) {
-      setFeedback('❌ Re-print failed: ' + err.message, 'error');
-    } finally {
-      releaseSafeWriter();
-    }
+    // Use full live visual kiosk overlay and calibrated safe 32-dot printing
+    await printCanvasWithLiveKiosk(c, item.subtitle || 'Saved Photo');
   };
   img.src = item.dataUrl;
 }
+
+// ── LOAD SAVED HISTORY ITEM TO BOOTH PREVIEW ────────────────
+function loadHistoryItemToBooth(idx) {
+  const hist = getHistory();
+  if (!hist[idx]) return;
+  const item = hist[idx];
+  loadCustomSavedImage(item.dataUrl, item.subtitle || `History Strip #${idx + 1}`);
+}
+
+// ── FILE PICKER: OPEN ANY OLD SAVED IMAGE OR STRIP TO PRINT ─
+function handleSavedStripFileSelect(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const cleanTitle = file.name.replace(/\.[^/.]+$/, '').toUpperCase();
+    loadCustomSavedImage(e.target.result, cleanTitle);
+  };
+  reader.readAsDataURL(file);
+  event.target.value = ''; // Reset input so same file can be re-selected
+}
+
+// ── LOAD & PREPARE ANY CUSTOM SAVED IMAGE FOR PRINTING ─────
+async function loadCustomSavedImage(dataUrl, title = 'SAVED PHOTO') {
+  setFeedback('📂 Loading saved image to photo booth...', 'busy');
+  const img = new Image();
+  img.onload = () => {
+    // Calibrated for standard RP203 384-dot wide continuous thermal roll
+    const targetW = 384;
+    const targetH = Math.max(120, Math.round(img.height * (targetW / img.width)));
+
+    const c = document.createElement('canvas');
+    c.width = targetW;
+    c.height = targetH;
+    const ctx = c.getContext('2d');
+
+    // Clean white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, targetW, targetH);
+    ctx.drawImage(img, 0, 0, targetW, targetH);
+
+    state.customLoadedCanvas = c;
+    state.customLoadedTitle = title;
+
+    // Show preview on screen
+    renderCustomLoadedPreview(dataUrl, title);
+
+    // Save into history pool so user can reprint anytime
+    saveHistoryItem({
+      dataUrl: dataUrl,
+      subtitle: title,
+      timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: Date.now()
+    });
+
+    if (btnPrint) btnPrint.disabled = false;
+    if (btnDownload) {
+      btnDownload.disabled = false;
+      btnDownload.onclick = saveStripJpg;
+    }
+
+    setFeedback(`✅ "${title}" loaded! Ready to print. Click "🖨️ Print Photo Strip" to print now.`, 'success');
+  };
+  img.onerror = () => {
+    setFeedback('❌ Could not read the selected image file. Please choose a valid JPG or PNG.', 'error');
+  };
+  img.src = dataUrl;
+}
+
+// ── RENDER CUSTOM LOADED SAVED IMAGE PREVIEW IN THE STRIP ───
+function renderCustomLoadedPreview(dataUrl, title) {
+  const stripPreview = document.getElementById('strip-preview');
+  if (!stripPreview) return;
+
+  let customWrap = document.getElementById('custom-strip-preview-wrap');
+  if (!customWrap) {
+    customWrap = document.createElement('div');
+    customWrap.id = 'custom-strip-preview-wrap';
+    customWrap.className = 'custom-strip-preview-wrap';
+    const footer = stripPreview.querySelector('.strip-bottom-footer');
+    if (footer) {
+      stripPreview.insertBefore(customWrap, footer);
+    } else {
+      stripPreview.appendChild(customWrap);
+    }
+  }
+
+  // Hide 3 standard shot frames
+  const frames = stripPreview.querySelectorAll('.strip-frame');
+  frames.forEach(f => f.style.display = 'none');
+
+  customWrap.style.display = 'block';
+  customWrap.innerHTML = `
+    <div class="custom-strip-badge">
+      <span>📂 Saved Photo Loaded</span>
+      <button class="btn-clear-custom" onclick="clearCustomLoadedImage()" title="Return to 3-photo booth mode">✕ Close</button>
+    </div>
+    <img src="${dataUrl}" alt="${escapeHtml(title)}" class="custom-strip-loaded-img" />
+    <div style="font-size:11px; font-weight:700; color:#475569; text-align:center; padding: 4px 0;">${escapeHtml(title)}</div>
+  `;
+}
+
+// ── CLEAR CUSTOM SAVED IMAGE & RETURN TO 3-PHOTO BOOTH ─────
+function clearCustomLoadedImage() {
+  state.customLoadedCanvas = null;
+  state.customLoadedTitle = null;
+
+  const customWrap = document.getElementById('custom-strip-preview-wrap');
+  if (customWrap) customWrap.style.display = 'none';
+
+  const stripPreview = document.getElementById('strip-preview');
+  if (stripPreview) {
+    const frames = stripPreview.querySelectorAll('.strip-frame');
+    frames.forEach(f => f.style.display = 'block');
+  }
+
+  if (btnDownload) {
+    btnDownload.onclick = saveStripJpg;
+  }
+}
+
 

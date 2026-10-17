@@ -63,7 +63,8 @@
         <h2 class="card-heading">Take Your Photos</h2>
         <div class="simple-tabs">
           <button class="tab-btn active" id="tab-webcam" onclick="switchMode('camera')">📷 Live Camera</button>
-          <button class="tab-btn" id="tab-upload" onclick="switchMode('upload')">📁 Upload Photos</button>
+          <button class="tab-btn" id="tab-upload" onclick="switchMode('upload')">📁 Upload 3 Photos</button>
+          <button class="tab-btn" id="tab-saved" onclick="document.getElementById('saved-strip-file-input').click()">📂 Print Saved Image</button>
           <button class="tab-btn btn-cam-toggle cam-active" id="btn-cam-toggle" onclick="toggleCameraPower()" title="Turn Camera On / Off">🛑 Turn Off Camera</button>
         </div>
       </div>
@@ -142,6 +143,11 @@
           <div class="strip-bottom-footer">
             <div class="strip-have-nice-day" id="strip-footer-text">HAVE A NICE DAY</div>
             <div class="strip-permanent-branding">★ PRINCE TAGADIYA • THE CREATO4 LAB ★</div>
+            <div class="strip-qr-box">
+              <img src="instagram_qr.png" alt="Instagram @creato4.lab QR Code" class="strip-qr-img" />
+              <div class="strip-qr-caption">📷 Scan to Follow @creato4.lab</div>
+              <div class="strip-qr-sub">instagram.com/creato4.lab</div>
+            </div>
           </div>
         </div>
 
@@ -163,6 +169,9 @@
         <button class="btn-secondary-action" id="btn-download" onclick="saveStripJpg()" disabled>
           💾 Save Image
         </button>
+        <button class="btn-secondary-action" onclick="document.getElementById('saved-strip-file-input').click()" title="Open an old saved photo or strip from your computer to print">
+          📂 Print Saved Image
+        </button>
         <button class="btn-secondary-action btn-reset" onclick="resetAll()">
           🔄 New Photos
         </button>
@@ -176,15 +185,21 @@
 
   </div>
 
-  <!-- ══ RECENT PRINTS HISTORY (LAST 3 PHOTO STRIPS) ══ -->
+  <!-- ══ RECENT PRINTS HISTORY & SAVED STRIPS ══ -->
   <section class="history-section" id="history-section">
     <div class="history-header">
       <div class="history-title-wrap">
         <span class="history-icon">🕒</span>
-        <h3 class="history-heading">Recent Photo Strips</h3>
-        <span class="history-badge">Last 3 Prints</span>
+        <h3 class="history-heading">Saved Photo Strips</h3>
+        <span class="history-badge">Instant Re-Print &amp; Download</span>
       </div>
-      <button class="btn-clear-history" id="btn-clear-history" onclick="clearHistory()" title="Clear history">Clear History</button>
+      <div class="history-header-actions">
+        <input type="file" id="saved-strip-file-input" accept="image/*" style="display:none" onchange="handleSavedStripFileSelect(event)" />
+        <button class="btn-open-saved-strip" onclick="document.getElementById('saved-strip-file-input').click()">
+          📂 Open Saved Image to Print
+        </button>
+        <button class="btn-clear-history" id="btn-clear-history" onclick="clearHistory()" title="Clear history">Clear History</button>
+      </div>
     </div>
     <div class="history-cards-row" id="history-cards-row">
       <!-- Populated dynamically by app.js -->
@@ -361,6 +376,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.js"></script>
+  <script src="qrcode.min.js"></script>
   <script src="pose_guide.js"></script>
   <script src="receipt-printer-encoder.umd.js"></script>
   <script src="app.js?v=5.1.0"></script>
