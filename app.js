@@ -12,12 +12,13 @@ const state = {
   stickers: [],
   shots: [null, null, null],
   currentShot: 0,
-  isShooting: false,
-
-  // Group Detection
-  coupleModeForce: false,
-  twoPeopleDetected: false,
-  detectedFaceCount: 0,
+  // Group / Person Detection
+  groupType: 'solo_m',
+  groupEmojis: '🧑',
+  groupTheme: 'indigo',
+  groupLabel: '1 Person (Solo)',
+  manualGroupOverride: null,
+  detectedCount: 1,
 
   // Printer
   printerPort: null,
@@ -59,28 +60,59 @@ const uploadBox         = document.getElementById('upload-box');
 const viewportBox       = document.getElementById('viewport-box');
 const fileInput         = document.getElementById('file-input');
 
-const RANDOM_CAPTIONS = [
-  { title: 'PHOTO BOOTH', subtitle: 'GOOD VIBES ONLY', footerLine1: 'HAVE A NICE DAY' },
-  { title: 'SNAP BOOTH', subtitle: 'MAKING MEMORIES', footerLine1: 'CHERISH THE MOMENTS' },
-  { title: 'CREATO 4', subtitle: 'BEST CREW EVER', footerLine1: 'LITTLE MOMENTS, BIG MEMORIES' },
-  { title: 'PHOTO BOOTH', subtitle: 'SMILE & LAUGH', footerLine1: 'FOREVER YOUNG' },
-  { title: 'ICONIC SHOTS', subtitle: 'UNFORGETTABLE TIMES', footerLine1: 'HAVE A NICE DAY' },
-  { title: 'SMILE CLUB', subtitle: 'PURE HAPPINESS', footerLine1: 'KEEP SMILING ALWAYS' },
-  { title: 'PHOTO BOOTH', subtitle: 'SWEET VIBES ONLY', footerLine1: 'LOVE & LAUGHTER ALWAYS' }
-];
+const THEMED_CAPTIONS = {
+  love: [
+    { title: '♥ PHOTO BOOTH ♥', subtitle: 'HUG & LOVE FOREVER', footerLine1: '♥ YOU ARE MY FAVORITE ♥' },
+    { title: '♥ LOVE BIRDS ♥', subtitle: 'SWEET TOGETHER', footerLine1: '♥ BETTER TOGETHER FOREVER ♥' },
+    { title: '♥ TWO HEARTS ♥', subtitle: 'HUGS & KISSES', footerLine1: '♥ ALWAYS & FOREVER ♥' },
+    { title: 'PHOTO BOOTH', subtitle: 'CRAZY IN LOVE', footerLine1: '♥ FOREVER & ALWAYS ♥' }
+  ],
+  yaari: [
+    { title: '★ YAARI FOREVER ★', subtitle: 'BROS FOR LIFE', footerLine1: '★ BRO CODE UNLIMITED ★' },
+    { title: '★ LEGENDARY DUO ★', subtitle: 'DOUBLE TROUBLE', footerLine1: '★ PARTNERS IN CRIME ★' },
+    { title: '★ BROS CLUB ★', subtitle: 'REAL YAARI', footerLine1: '★ UNBREAKABLE BOND ★' }
+  ],
+  bestie: [
+    { title: '✨ BESTIES CLUB ✨', subtitle: 'PURE HAPPINESS', footerLine1: '✨ CUTE & CRAZY ALWAYS ✨' },
+    { title: '✨ DOUBLE CUTE ✨', subtitle: 'MAKING MEMORIES', footerLine1: '✨ SHINE TOGETHER ALWAYS ✨' },
+    { title: '✨ SWEET BESTIES ✨', subtitle: 'GIRL POWER', footerLine1: '✨ FOREVER & ALWAYS ✨' }
+  ],
+  trio: [
+    { title: '★ THE TRIO ★', subtitle: 'THREE IS A PARTY', footerLine1: '★ UNSTOPPABLE THREE ★' },
+    { title: '★ CREW VIBES ★', subtitle: 'GOLDEN MEMORIES', footerLine1: '★ BEST FRIENDS FOREVER ★' }
+  ],
+  squad: [
+    { title: '★ SQUAD GOALS ★', subtitle: 'THE WHOLE CREW', footerLine1: '★ ICONIC MOMENTS ★' },
+    { title: '★ CREATO CREW ★', subtitle: 'MAKING HISTORY', footerLine1: '★ BEST CREW EVER ★' }
+  ],
+  default: [
+    { title: 'PHOTO BOOTH', subtitle: 'GOOD VIBES ONLY', footerLine1: 'HAVE A NICE DAY' },
+    { title: 'SNAP BOOTH', subtitle: 'MAKING MEMORIES', footerLine1: 'CHERISH THE MOMENTS' },
+    { title: 'CREATO 4', subtitle: 'BEST CREW EVER', footerLine1: 'LITTLE MOMENTS, BIG MEMORIES' },
+    { title: 'PHOTO BOOTH', subtitle: 'SMILE & LAUGH', footerLine1: 'FOREVER YOUNG' },
+    { title: 'SMILE CLUB', subtitle: 'PURE HAPPINESS', footerLine1: 'KEEP SMILING ALWAYS' },
+    { title: 'PHOTO BOOTH', subtitle: 'SWEET VIBES ONLY', footerLine1: 'LOVE & LAUGHTER ALWAYS' }
+  ]
+};
+
+const RANDOM_CAPTIONS = THEMED_CAPTIONS.default;
 
 function pickRandomCaption() {
-  const idx = Math.floor(Math.random() * RANDOM_CAPTIONS.length);
-  state.currentCaption = { ...RANDOM_CAPTIONS[idx] };
+  const currentTheme = state.groupTheme || 'default';
+  const pool = THEMED_CAPTIONS[currentTheme] || THEMED_CAPTIONS.default;
+  const idx = Math.floor(Math.random() * pool.length);
+  state.currentCaption = { ...pool[idx] };
   syncCaptionDisplay();
 }
 
 function shuffleRandomCaption() {
+  const currentTheme = state.groupTheme || 'default';
+  const pool = THEMED_CAPTIONS[currentTheme] || THEMED_CAPTIONS.default;
   let nextIdx;
   do {
-    nextIdx = Math.floor(Math.random() * RANDOM_CAPTIONS.length);
-  } while (RANDOM_CAPTIONS.length > 1 && RANDOM_CAPTIONS[nextIdx].subtitle === state.currentCaption?.subtitle);
-  state.currentCaption = { ...RANDOM_CAPTIONS[nextIdx] };
+    nextIdx = Math.floor(Math.random() * pool.length);
+  } while (pool.length > 1 && pool[nextIdx].subtitle === state.currentCaption?.subtitle);
+  state.currentCaption = { ...pool[nextIdx] };
   syncCaptionDisplay();
   setFeedback(`🎲 Caption: "${state.currentCaption.subtitle}"`);
 }
@@ -93,6 +125,65 @@ function syncCaptionDisplay() {
   if (topEl) topEl.textContent = state.currentCaption.title;
   if (subEl) subEl.textContent = state.currentCaption.subtitle;
   if (footEl) footEl.textContent = state.currentCaption.footerLine1;
+}
+
+// ── PERSON DETECTION CYCLING & MODES ────────────────────────
+const GROUP_CYCLE = [
+  { type: 'auto',      emojis: '✨',        label: 'Auto Detection',      theme: 'indigo' },
+  { type: 'couple_mf', emojis: '👨 👩',      label: '2 People (Couple)',   theme: 'love' },
+  { type: 'couple_ff', emojis: '👩 👩',      label: '2 People (Besties)',  theme: 'bestie' },
+  { type: 'couple_mm', emojis: '👨 👨',      label: '2 People (Bros)',     theme: 'yaari' },
+  { type: 'solo_m',    emojis: '👨',         label: '1 Person (Solo)',     theme: 'indigo' },
+  { type: 'solo_f',    emojis: '👩',         label: '1 Person (Solo)',     theme: 'bestie' },
+  { type: 'trio',      emojis: '🧑 🧑 🧑',    label: '3 People (Trio)',     theme: 'trio' },
+  { type: 'squad',     emojis: '🧑 🧑 🧑 🧑', label: '4+ People (Squad)',   theme: 'squad' }
+];
+
+function cycleGroupMode() {
+  const currentKey = state.manualGroupOverride || 'auto';
+  const currentIdx = GROUP_CYCLE.findIndex(g => g.type === currentKey);
+  const next = GROUP_CYCLE[(currentIdx + 1) % GROUP_CYCLE.length];
+
+  if (next.type === 'auto') {
+    state.manualGroupOverride = null;
+    detectionHistory = [];
+    setFeedback('✨ Auto Person Detection active');
+    updateDetectionUI('auto', '✨', 'Auto: Detecting...');
+  } else {
+    state.manualGroupOverride = next.type;
+    applyGroupState(next.type, next.emojis, next.theme, next.label, true);
+    setFeedback(`Mode locked: ${next.label}`);
+  }
+}
+
+function updateDetectionUI(type, emojis, label) {
+  const pill = document.getElementById('person-detection-pill');
+  const icon = document.getElementById('detection-icon');
+  const txt = document.getElementById('detection-label');
+  const camChipTxt = document.getElementById('cam-chip-text');
+
+  if (icon) icon.textContent = emojis;
+  if (txt) txt.textContent = label;
+  if (camChipTxt) camChipTxt.textContent = label;
+
+  if (pill) {
+    pill.className = 'person-detection-pill' + (type === 'auto' ? '' : ' theme-' + state.groupTheme);
+  }
+}
+
+function applyGroupState(type, emojis, theme, label, isManual = false) {
+  const wasTheme = state.groupTheme;
+  state.groupType = type;
+  state.groupEmojis = emojis;
+  state.groupTheme = theme;
+  state.groupLabel = label;
+
+  updateDetectionUI(type, emojis, label);
+
+  // Automatically update captions if theme changed and user didn't write custom captions
+  if (wasTheme !== theme && !state.customCaptionUserDefined) {
+    pickRandomCaption();
+  }
 }
 
 // ── CUSTOM CAPTION MODAL CONTROLS ───────────────────────────
@@ -153,9 +244,10 @@ function applyCustomCaption() {
     footerLine2: ''
   };
 
+  state.customCaptionUserDefined = true;
   syncCaptionDisplay();
   closeCaptionModal();
-  setFeedback(`✅ Custom caption saved: "${state.currentCaption.subtitle}"`);
+  setFeedback(`Custom caption saved: "${state.currentCaption.subtitle}"`);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -166,6 +258,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initStickerEvents();
   initUploadEvents();
   checkAuthorizedPorts();
+  startPersonDetectionLoop();
 
   if (baudInput) {
     baudInput.addEventListener('change', e => { state.baudRate = parseInt(e.target.value); });
@@ -424,9 +517,180 @@ function initStickerEvents() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// MULTI-PERSON (UP TO 4) GROUP DETECTION, THEMES & POSE GUIDES
+// ROBUST DUAL-ENGINE PERSON DETECTION WITH TEMPORAL SMOOTHING
+// Works on both Local Server (Python ViT) and GitHub Pages (Client API)
 // ══════════════════════════════════════════════════════════════
-const poseCanvas   = document.getElementById('pose-canvas');
+let detectionHistory = []; // sliding window for stable consensus
+let isDetecting = false;
+let backendFails = 0;
+let nativeFaceDetector = null;
+
+if ('FaceDetector' in window) {
+  try {
+    nativeFaceDetector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 5 });
+  } catch {}
+}
+
+async function startPersonDetectionLoop() {
+  setInterval(async () => {
+    if (state.mode !== 'camera' || !video || video.readyState < 2 || isDetecting) return;
+    if (state.manualGroupOverride) return; // User manually locked a mode
+
+    isDetecting = true;
+    try {
+      let result = null;
+
+      // 1. Try local backend server if available
+      if (backendFails < 3) {
+        try {
+          hiddenCanvas.width = 320;
+          hiddenCanvas.height = 240;
+          const ctx = hiddenCanvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, 320, 240);
+          const b64 = hiddenCanvas.toDataURL('image/jpeg', 0.8);
+
+          const res = await fetch('/api/detect-faces', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageBase64: b64 }),
+            signal: AbortSignal.timeout(1000)
+          });
+
+          if (res.ok) {
+            result = await res.json();
+            backendFails = 0; // Server is alive and responsive
+          } else {
+            backendFails++;
+          }
+        } catch {
+          backendFails++;
+        }
+      }
+
+      // 2. Client-side fallback engine (100% works on GitHub Pages & offline)
+      if (!result) {
+        result = await detectFacesClientSide();
+      }
+
+      if (result) {
+        processDetectionResult(result);
+      }
+    } catch {
+      // Graceful
+    } finally {
+      isDetecting = false;
+    }
+  }, 800);
+}
+
+// Client-side detection engine
+async function detectFacesClientSide() {
+  if (nativeFaceDetector && video.videoWidth > 0) {
+    try {
+      const faces = await nativeFaceDetector.detect(video);
+      const count = faces ? faces.length : 0;
+      return formatGroupCount(count);
+    } catch {}
+  }
+  return analyzeVideoPresence();
+}
+
+function formatGroupCount(count) {
+  if (count <= 0) {
+    return { count: 0, groupType: 'solo_m', emojis: '🧑', themeColor: 'indigo', label: '1 Person (Solo)' };
+  } else if (count === 1) {
+    return { count: 1, groupType: 'solo_m', emojis: '🧑', themeColor: 'indigo', label: '1 Person (Solo)' };
+  } else if (count === 2) {
+    return { count: 2, groupType: 'couple_mf', emojis: '👨 👩', themeColor: 'love', label: '2 People (Couple)' };
+  } else if (count === 3) {
+    return { count: 3, groupType: 'trio', emojis: '🧑 🧑 🧑', themeColor: 'trio', label: '3 People (Trio)' };
+  } else {
+    return { count: count, groupType: 'squad', emojis: '🧑 🧑 🧑 🧑', themeColor: 'squad', label: `${count} People (Squad)` };
+  }
+}
+
+// Fallback presence & facial region analysis
+function analyzeVideoPresence() {
+  try {
+    hiddenCanvas.width = 80;
+    hiddenCanvas.height = 60;
+    const ctx = hiddenCanvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, 80, 60);
+    const imgData = ctx.getImageData(0, 0, 80, 60).data;
+
+    let skinLeft = 0;
+    let skinRight = 0;
+
+    for (let y = 10; y < 50; y++) {
+      for (let x = 10; x < 70; x++) {
+        const idx = (y * 80 + x) * 4;
+        const r = imgData[idx];
+        const g = imgData[idx + 1];
+        const b = imgData[idx + 2];
+
+        const yVal = 0.299 * r + 0.587 * g + 0.114 * b;
+        const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+        const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+        if (cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173 && yVal > 40) {
+          if (x < 40) skinLeft++;
+          else skinRight++;
+        }
+      }
+    }
+
+    if (skinLeft > 70 && skinRight > 70) {
+      return { count: 2, groupType: 'couple_mf', emojis: '👨 👩', themeColor: 'love', label: '2 People (Couple)' };
+    }
+    return { count: 1, groupType: 'solo_m', emojis: '🧑', themeColor: 'indigo', label: '1 Person (Solo)' };
+  } catch {
+    return { count: 1, groupType: 'solo_m', emojis: '🧑', themeColor: 'indigo', label: '1 Person (Solo)' };
+  }
+}
+
+// ── TEMPORAL STABILITY FILTER (PREVENTS FLICKERING & JITTER) ──
+function processDetectionResult(result) {
+  if (state.manualGroupOverride) return;
+
+  const type = result.groupType || 'solo_m';
+  const emojis = result.emojis || '🧑';
+  const theme = result.themeColor || 'indigo';
+  const label = result.label || (result.count === 2 ? '2 People (Couple)' : result.count >= 3 ? `${result.count} People (Squad)` : '1 Person (Solo)');
+
+  detectionHistory.push({ type, emojis, theme, label });
+  if (detectionHistory.length > 4) {
+    detectionHistory.shift();
+  }
+
+  // Count votes in recent history
+  const counts = {};
+  detectionHistory.forEach(item => {
+    counts[item.type] = (counts[item.type] || 0) + 1;
+  });
+
+  let dominantType = type;
+  let maxVotes = 0;
+  for (const [k, v] of Object.entries(counts)) {
+    if (v > maxVotes) {
+      maxVotes = v;
+      dominantType = k;
+    }
+  }
+
+  // Require consensus of at least 2 consecutive votes to switch state
+  if (maxVotes >= 2 && state.groupType !== dominantType) {
+    const dominantItem = detectionHistory.find(d => d.type === dominantType);
+    if (dominantItem) {
+      applyGroupState(dominantItem.type, dominantItem.emojis, dominantItem.theme, dominantItem.label);
+    }
+  } else if (state.groupType === dominantType) {
+    const dominantItem = detectionHistory.find(d => d.type === dominantType);
+    if (dominantItem) {
+      updateDetectionUI(dominantItem.type, dominantItem.emojis, dominantItem.label);
+    }
+  }
+}
+
 // ── PHOTO BOOTH 3-SHOT SHOOTING ────────────────────────────
 async function startPhotoSession() {
   if (state.isShooting) return;
@@ -579,6 +843,7 @@ function resetAll() {
   state.shots = [null, null, null];
   state.stickers = [];
   drawStickers();
+  state.customCaptionUserDefined = false;
   pickRandomCaption();
   for (let i = 0; i < 3; i++) clearStripFrame(i);
   clearCustomLoadedImage();
@@ -638,6 +903,7 @@ async function renderStripCanvas() {
   const headerTitle = cap.title;
   const headerSubtitle = cap.subtitle;
   const footerLine1 = cap.footerLine1;
+  const stampEmoji = (state.groupTheme === 'love') ? '♥' : (state.groupTheme === 'bestie') ? '✨' : (state.groupTheme === 'yaari' || state.groupTheme === 'squad') ? '★' : '';
 
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
@@ -654,7 +920,7 @@ async function renderStripCanvas() {
     month: 'short', day: 'numeric', year: 'numeric'
   }).toUpperCase() + ' • ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
   ctx.font = '10px monospace';
-  ctx.fillText(dateStr, stripW / 2, 66);
+  ctx.fillText(stampEmoji ? `${stampEmoji} ${dateStr} ${stampEmoji}` : dateStr, stripW / 2, 66);
 
   // Divider line
   ctx.lineWidth = 2;

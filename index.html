@@ -29,6 +29,15 @@
       </div>
     </div>
 
+    <!-- CENTER: Robust Person Detection Badge -->
+    <div class="header-center">
+      <button class="person-detection-pill" id="person-detection-pill" onclick="cycleGroupMode()" title="Automatic Person Detection. Tap to switch manually or reset to Auto.">
+        <span class="detection-dot" id="detection-dot"></span>
+        <span class="detection-icon" id="detection-icon">👥</span>
+        <span class="detection-label" id="detection-label">Auto: Detecting...</span>
+      </button>
+    </div>
+
     <div class="header-controls">
       <!-- Printer Status Button -->
       <button class="printer-status-pill" id="quick-printer-status" onclick="openPrinterModal()" title="Printer connection status & settings">
@@ -73,6 +82,12 @@
           <div class="viewport-box" id="viewport-box">
             <video id="video" autoplay playsinline muted></video>
             <div class="countdown-overlay" id="countdown-overlay"></div>
+
+            <!-- Sleek live detection chip inside viewport -->
+            <div class="camera-detection-chip" id="camera-detection-chip">
+              <span class="cam-chip-dot"></span>
+              <span id="cam-chip-text">Auto Vision Active</span>
+            </div>
 
             <!-- Clean Camera Power Toggle -->
             <button class="camera-power-btn cam-active" id="btn-cam-toggle" onclick="toggleCameraPower()" title="Turn Camera On / Off">

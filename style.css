@@ -169,6 +169,123 @@ body {
   border-color: var(--border-strong);
 }
 
+/* ── Person Detection Status Pill in Header ── */
+.header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.person-detection-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: var(--bg-surface-soft);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  padding: 0.45rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-sm);
+}
+.person-detection-pill:hover {
+  background: #e2e8f0;
+  transform: translateY(-1px);
+}
+
+.detection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  display: inline-block;
+}
+
+.detection-icon {
+  font-size: 1.05rem;
+}
+.detection-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* Themed Person Detection Badges */
+.person-detection-pill.theme-love {
+  background: #fff1f2;
+  border-color: #fca5a5;
+  color: #e11d48;
+}
+.person-detection-pill.theme-love .detection-dot {
+  background: #e11d48;
+  box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.2);
+}
+
+.person-detection-pill.theme-yaari {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+.person-detection-pill.theme-yaari .detection-dot {
+  background: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.person-detection-pill.theme-bestie {
+  background: #fdf2f8;
+  border-color: #f9a8d4;
+  color: #db2777;
+}
+.person-detection-pill.theme-bestie .detection-dot {
+  background: #db2777;
+  box-shadow: 0 0 0 2px rgba(219, 39, 119, 0.2);
+}
+
+.person-detection-pill.theme-trio,
+.person-detection-pill.theme-squad {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #15803d;
+}
+.person-detection-pill.theme-trio .detection-dot,
+.person-detection-pill.theme-squad .detection-dot {
+  background: #15803d;
+  box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.2);
+}
+
+/* ── Live Viewport Camera Detection Chip ── */
+.camera-detection-chip {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  z-index: 10;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.cam-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
 /* ── Main Layout ── */
 .app-main {
   flex: 1;
