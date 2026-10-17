@@ -14,9 +14,9 @@ const PUBLIC_DIR = __dirname;
 let activePortPath = null;
 let activePortFd = null;
 
-// Persistent warm AI face & gender detection process
 let aiWorker = null;
-let aiQueue = [];
+let aiReqCounter = 0;
+const aiPendingRequests = new Map();
 
 function getAiWorker() {
   if (aiWorker && !aiWorker.killed) return aiWorker;
@@ -30,19 +30,41 @@ function getAiWorker() {
     while ((idx = buffer.indexOf('\n')) !== -1) {
       const line = buffer.substring(0, idx).trim();
       buffer = buffer.substring(idx + 1);
-      if (line && aiQueue.length > 0) {
-        const cb = aiQueue.shift();
-        cb(line);
+      if (line) {
+        try {
+          const parsed = JSON.parse(line);
+          const reqId = parsed.reqId;
+          if (reqId && aiPendingRequests.has(reqId)) {
+            const entry = aiPendingRequests.get(reqId);
+            aiPendingRequests.delete(reqId);
+            clearTimeout(entry.timer);
+            entry.res.writeHead(200, { 'Content-Type': 'application/json' });
+            entry.res.end(JSON.stringify(parsed));
+          } else {
+            const firstKey = aiPendingRequests.keys().next().value;
+            if (firstKey) {
+              const entry = aiPendingRequests.get(firstKey);
+              aiPendingRequests.delete(firstKey);
+              clearTimeout(entry.timer);
+              entry.res.writeHead(200, { 'Content-Type': 'application/json' });
+              entry.res.end(JSON.stringify(parsed));
+            }
+          }
+        } catch {
+          // Graceful ignore malformed line
+        }
       }
     }
   });
 
   aiWorker.on('exit', () => {
     aiWorker = null;
-    while (aiQueue.length > 0) {
-      const cb = aiQueue.shift();
-      cb(JSON.stringify({ count: 0, groupType: 'solo', emojis: '🧑', faces: [] }));
+    for (const [key, entry] of aiPendingRequests.entries()) {
+      clearTimeout(entry.timer);
+      entry.res.writeHead(200, { 'Content-Type': 'application/json' });
+      entry.res.end(JSON.stringify({ count: 1, groupType: 'solo_m', emojis: '🧑', faces: [] }));
     }
+    aiPendingRequests.clear();
   });
 
   return aiWorker;
@@ -173,34 +195,22 @@ const server = http.createServer(async (req, res) => {
         }
 
         const worker = getAiWorker();
-        let responded = false;
+        const reqId = ++aiReqCounter;
+        
         const timer = setTimeout(() => {
-          if (!responded) {
-            responded = true;
+          if (aiPendingRequests.has(reqId)) {
+            aiPendingRequests.delete(reqId);
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ count: 0, groupType: 'solo', emojis: '🧑', faces: [] }));
+            res.end(JSON.stringify({ count: 1, groupType: 'solo_m', emojis: '🧑', faces: [] }));
           }
-        }, 1200);
+        }, 2200);
 
-        aiQueue.push(rawOutput => {
-          if (responded) return;
-          responded = true;
-          clearTimeout(timer);
-          try {
-            const parsed = JSON.parse(rawOutput);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(parsed));
-          } catch {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ count: 0, groupType: 'solo', emojis: '🧑', faces: [] }));
-          }
-        });
-
-        const singleLine = JSON.stringify({ imageBase64 }) + '\n';
+        aiPendingRequests.set(reqId, { res, timer });
+        const singleLine = JSON.stringify({ reqId, imageBase64 }) + '\n';
         worker.stdin.write(singleLine);
       } catch (err) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ count: 0, groupType: 'solo', emojis: '🧑', error: err.message, faces: [] }));
+        res.end(JSON.stringify({ count: 1, groupType: 'solo_m', emojis: '🧑', error: err.message, faces: [] }));
       }
     });
     return;

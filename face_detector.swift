@@ -21,40 +21,41 @@ func detectFaces(from base64String: String) -> (count: Int, faces: [DetectedFace
         return (0, [])
     }
     
-    let request = VNDetectFaceLandmarksRequest()
+    let landmarkReq = VNDetectFaceLandmarksRequest()
+    let rectReq = VNDetectFaceRectanglesRequest()
     let handler = VNImageRequestHandler(ciImage: ciImage, options: [:])
     
     do {
-        try handler.perform([request])
-        guard let results = request.results else {
+        try handler.perform([landmarkReq, rectReq])
+        
+        let landmarkResults = (landmarkReq.results ?? []).filter { $0.boundingBox.width >= 0.06 && $0.boundingBox.height >= 0.06 }
+        let rectResults = (rectReq.results ?? []).filter { $0.boundingBox.width >= 0.06 && $0.boundingBox.height >= 0.06 }
+        
+        let facesToUse = !landmarkResults.isEmpty ? landmarkResults : rectResults
+        if facesToUse.isEmpty {
             return (0, [])
         }
         
-        let detected = results.prefix(4).map { face -> DetectedFace in
+        let detected = facesToUse.prefix(4).map { face -> DetectedFace in
             let box = face.boundingBox
             var estimatedGender = "male"
             
-            // Analyze facial geometry and jawline contour if available
-            if let landmarks = face.landmarks,
+            if let landmarkFace = face as? VNFaceObservation,
+               let landmarks = landmarkFace.landmarks,
                let contour = landmarks.faceContour {
                 let pts = contour.normalizedPoints
                 if pts.count >= 6 {
-                    // Check jaw tapering (chin width vs cheek width)
                     let leftCheek = pts[0].x
                     let rightCheek = pts[pts.count - 1].x
                     let cheekWidth = abs(rightCheek - leftCheek)
-                    
                     let midIdx = pts.count / 2
                     let chinWidth = abs(pts[midIdx + 1].x - pts[midIdx - 1].x)
-                    
                     let taperRatio = chinWidth / max(0.01, cheekWidth)
-                    // Female faces have softer, more tapered V-jawlines
                     if taperRatio < 0.46 || (box.size.width / max(0.01, box.size.height)) < 0.82 {
                         estimatedGender = "female"
                     }
                 }
             } else {
-                // Fallback to aspect ratio
                 if (box.size.width / max(0.01, box.size.height)) < 0.85 {
                     estimatedGender = "female"
                 }
@@ -69,9 +70,8 @@ func detectFaces(from base64String: String) -> (count: Int, faces: [DetectedFace
             )
         }
         
-        // Sort faces left-to-right on screen
         let sorted = detected.sorted { $0.x < $1.x }
-        return (sorted.count, sorted)
+        return (sorted.count, Array(sorted))
     } catch {
         return (0, [])
     }

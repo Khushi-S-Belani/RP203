@@ -162,12 +162,15 @@ function updateDetectionUI(type, emojis, label) {
   const txt = document.getElementById('detection-label');
   const camChipTxt = document.getElementById('cam-chip-text');
 
+  const cleanLabel = (label || '1 Person (Solo)').replace(/^Auto:\s*/i, '');
+  const displayTxt = state.manualGroupOverride ? cleanLabel : `Auto: ${cleanLabel}`;
+
   if (icon) icon.textContent = emojis;
-  if (txt) txt.textContent = label;
-  if (camChipTxt) camChipTxt.textContent = label;
+  if (txt) txt.textContent = displayTxt;
+  if (camChipTxt) camChipTxt.textContent = `${emojis} ${cleanLabel}`;
 
   if (pill) {
-    pill.className = 'person-detection-pill' + (type === 'auto' ? '' : ' theme-' + state.groupTheme);
+    pill.className = 'person-detection-pill' + (state.groupTheme ? ' theme-' + state.groupTheme : '');
   }
 }
 
@@ -312,6 +315,9 @@ async function startCamera() {
       audio: false
     });
     video.srcObject = stream;
+    try {
+      await video.play();
+    } catch (_) {}
     isCameraActive = true;
     updateCameraToggleButton(true);
     const camOffOverlay = document.getElementById('camera-off-overlay');
@@ -523,6 +529,7 @@ function initStickerEvents() {
 let detectionHistory = []; // sliding window for stable consensus
 let isDetecting = false;
 let backendFails = 0;
+let loopTickCount = 0;
 let nativeFaceDetector = null;
 
 if ('FaceDetector' in window) {
@@ -532,16 +539,22 @@ if ('FaceDetector' in window) {
 }
 
 async function startPersonDetectionLoop() {
+  // Immediately update UI to 1 Person (Solo) so badge never stays stuck in "Detecting..."
+  updateDetectionUI('solo_m', '🧑', '1 Person (Solo)');
+
   setInterval(async () => {
-    if (state.mode !== 'camera' || !video || video.readyState < 2 || isDetecting) return;
+    loopTickCount++;
+    const hasFrames = video && (video.readyState >= 2 || (video.videoWidth > 0 && !video.paused));
+    if (state.mode !== 'camera' || !hasFrames || isDetecting) return;
     if (state.manualGroupOverride) return; // User manually locked a mode
 
     isDetecting = true;
     try {
       let result = null;
 
-      // 1. Try local backend server if available
-      if (backendFails < 3) {
+      // 1. Try local backend server if available (or retry periodically every 8 ticks)
+      const tryBackend = (backendFails < 3) || (loopTickCount % 8 === 0);
+      if (tryBackend) {
         try {
           hiddenCanvas.width = 320;
           hiddenCanvas.height = 240;
@@ -553,7 +566,7 @@ async function startPersonDetectionLoop() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ imageBase64: b64 }),
-            signal: AbortSignal.timeout(1000)
+            signal: AbortSignal.timeout(2000)
           });
 
           if (res.ok) {
@@ -580,7 +593,7 @@ async function startPersonDetectionLoop() {
     } finally {
       isDetecting = false;
     }
-  }, 800);
+  }, 600);
 }
 
 // Client-side detection engine
@@ -596,9 +609,7 @@ async function detectFacesClientSide() {
 }
 
 function formatGroupCount(count) {
-  if (count <= 0) {
-    return { count: 0, groupType: 'solo_m', emojis: '🧑', themeColor: 'indigo', label: '1 Person (Solo)' };
-  } else if (count === 1) {
+  if (count <= 1) {
     return { count: 1, groupType: 'solo_m', emojis: '🧑', themeColor: 'indigo', label: '1 Person (Solo)' };
   } else if (count === 2) {
     return { count: 2, groupType: 'couple_mf', emojis: '👨 👩', themeColor: 'love', label: '2 People (Couple)' };
@@ -609,21 +620,30 @@ function formatGroupCount(count) {
   }
 }
 
-// Fallback presence & facial region analysis
+// High-reliability multi-person presence analysis
 function analyzeVideoPresence() {
   try {
-    hiddenCanvas.width = 80;
-    hiddenCanvas.height = 60;
-    const ctx = hiddenCanvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, 80, 60);
-    const imgData = ctx.getImageData(0, 0, 80, 60).data;
+    if (!video || !video.videoWidth) {
+      return { count: 1, groupType: 'solo_m', emojis: '🧑', themeColor: 'indigo', label: '1 Person (Solo)' };
+    }
 
-    let skinLeft = 0;
-    let skinRight = 0;
+    const w = 120;
+    const h = 90;
+    hiddenCanvas.width = w;
+    hiddenCanvas.height = h;
+    const ctx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, w, h);
+    const imgData = ctx.getImageData(0, 0, w, h).data;
 
-    for (let y = 10; y < 50; y++) {
-      for (let x = 10; x < 70; x++) {
-        const idx = (y * 80 + x) * 4;
+    let leftEnergy = 0;
+    let rightEnergy = 0;
+
+    const topY = Math.floor(h * 0.15);
+    const bottomY = Math.floor(h * 0.75);
+
+    for (let y = topY; y < bottomY; y++) {
+      for (let x = 10; x < w - 10; x++) {
+        const idx = (y * w + x) * 4;
         const r = imgData[idx];
         const g = imgData[idx + 1];
         const b = imgData[idx + 2];
@@ -632,14 +652,19 @@ function analyzeVideoPresence() {
         const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
         const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
 
-        if (cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173 && yVal > 40) {
-          if (x < 40) skinLeft++;
-          else skinRight++;
+        const isSkin = (cb >= 70 && cb <= 140 && cr >= 125 && cr <= 185 && yVal > 30) ||
+                       (r > 75 && g > 45 && b > 30 && r > g && r > b && (r - g) > 8);
+        const isHeadHair = (yVal < 60 && y < h * 0.45);
+
+        if (isSkin || isHeadHair) {
+          if (x < w * 0.40) leftEnergy++;
+          else if (x > w * 0.60) rightEnergy++;
         }
       }
     }
 
-    if (skinLeft > 70 && skinRight > 70) {
+    // Both left and right quadrants have significant head/skin presence = 2 People (Couple)
+    if (leftEnergy > 90 && rightEnergy > 90) {
       return { count: 2, groupType: 'couple_mf', emojis: '👨 👩', themeColor: 'love', label: '2 People (Couple)' };
     }
     return { count: 1, groupType: 'solo_m', emojis: '🧑', themeColor: 'indigo', label: '1 Person (Solo)' };
@@ -658,7 +683,7 @@ function processDetectionResult(result) {
   const label = result.label || (result.count === 2 ? '2 People (Couple)' : result.count >= 3 ? `${result.count} People (Squad)` : '1 Person (Solo)');
 
   detectionHistory.push({ type, emojis, theme, label });
-  if (detectionHistory.length > 4) {
+  if (detectionHistory.length > 3) {
     detectionHistory.shift();
   }
 
@@ -677,17 +702,14 @@ function processDetectionResult(result) {
     }
   }
 
-  // Require consensus of at least 2 consecutive votes to switch state
+  const dominantItem = detectionHistory.find(d => d.type === dominantType) || { type, emojis, theme, label };
+
+  // If state type changed and has at least 2 votes
   if (maxVotes >= 2 && state.groupType !== dominantType) {
-    const dominantItem = detectionHistory.find(d => d.type === dominantType);
-    if (dominantItem) {
-      applyGroupState(dominantItem.type, dominantItem.emojis, dominantItem.theme, dominantItem.label);
-    }
-  } else if (state.groupType === dominantType) {
-    const dominantItem = detectionHistory.find(d => d.type === dominantType);
-    if (dominantItem) {
-      updateDetectionUI(dominantItem.type, dominantItem.emojis, dominantItem.label);
-    }
+    applyGroupState(dominantItem.type, dominantItem.emojis, dominantItem.theme, dominantItem.label);
+  } else {
+    // Keep UI text & chip up to date
+    updateDetectionUI(dominantItem.type, dominantItem.emojis, dominantItem.label);
   }
 }
 

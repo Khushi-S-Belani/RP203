@@ -69,8 +69,8 @@ def detect_faces_and_gender(image_bytes):
     detected_faces = raw_data.get('faces', [])
     if not detected_faces:
         return {
-            "count": 0,
-            "groupType": "solo",
+            "count": 1,
+            "groupType": "solo_m",
             "emojis": "🧑",
             "themeColor": "indigo",
             "faces": []
@@ -160,12 +160,14 @@ def detect_faces_and_gender(image_bytes):
     }
 
 def process_single(raw_in):
+    req_id = None
     try:
         if not raw_in.strip():
-            return json.dumps({"count": 0, "groupType": "solo", "emojis": "🧑", "faces": []})
+            return json.dumps({"count": 1, "groupType": "solo_m", "emojis": "🧑", "themeColor": "indigo", "faces": []})
         
         if raw_in.startswith('{'):
             payload = json.loads(raw_in)
+            req_id = payload.get('reqId')
             data_str = payload.get('imageBase64', '')
         else:
             data_str = raw_in
@@ -175,16 +177,21 @@ def process_single(raw_in):
         
         img_bytes = base64.b64decode(data_str)
         result = detect_faces_and_gender(img_bytes)
+        if req_id is not None:
+            result['reqId'] = req_id
         return json.dumps(result)
     except Exception as e:
-        return json.dumps({
-            "count": 0,
-            "groupType": "solo",
+        res = {
+            "count": 1,
+            "groupType": "solo_m",
             "emojis": "🧑",
             "themeColor": "indigo",
             "error": str(e),
             "faces": []
-        })
+        }
+        if req_id is not None:
+            res['reqId'] = req_id
+        return json.dumps(res)
 
 def main():
     if '--daemon' in sys.argv:
