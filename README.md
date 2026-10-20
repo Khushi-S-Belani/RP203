@@ -6,20 +6,17 @@
 
 An authentic, ultra-smooth **photo booth and thermal printing kiosk** designed for the **RP203 (MOD-QC0925 / 58mm thermal printer)**. Connects directly to your thermal printer via **Web Serial API** at **9600 baud** with zero drivers needed on Chrome & Edge.
 
+📖 **For exhaustive technical documentation, hardware pinouts, and architectural specifications, see [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md).**
+
 ---
 
 ## ✨ Key Features
 
-- **🖨️ Authentic Live Thermal Print Preview:** Real-time 1:1 progressive print simulation in the UI as paper emerges line-by-line from the thermal slot, showing exact Floyd-Steinberg monochrome dithering with an active thermal laser head indicator.
-- **💑 Multi-Person & Couple Pose Guides:**
-  - **Love / Couple Mode (`👨 👩` / `🤗 🫶 💖`):** Guides you through **Pose 1: Hug Tight**, **Pose 2: Heart Hands**, and **Pose 3: Cheek-to-Cheek**. Each photo gets its own distinct cute badge!
-  - **Yaari / Bros Mode (`👨 👨` / `👊 🤝 ★`):** Fist bump, handshake, and swagger pose.
-  - **Besties Mode (`👩 👩` / `✨ 👯‍♀️ 💖`):** Cute peace signs, bestie hugs, and sparkles.
-- **✏️ Custom Captions with Character Limit:**
-  - Interactive caption editor with strict **28-character counters** to fit 32-column 58mm thermal paper without ugly line breaks.
-  - 🎲 One-tap random caption shuffler matching your selected group theme.
-- **🕒 Recent Prints History:** Automatically records the **Last 3 Prints** with instant preview, reprint, and image download.
-- **🛑 Camera Toggle:** Turn camera on/off anytime with 1 tap or switch to file upload mode.
+- **👥 Robust Automatic Person Detection:** Instant dual-engine face and group detection (Local Apple Vision + browser-native spatial energy fallback) that automatically classifies **1 Person (Solo)**, **Couple / Love (`👨 👩` / `♥`)**, **Trio**, or **Squad** with temporal smoothing (zero jitter) and live UI indicators.
+- **🖨️ Authentic Live Thermal Print Preview:** Real-time 1:1 progressive print simulation in the UI as paper emerges line-by-line from the thermal slot, showing exact Floyd-Steinberg monochrome dithering.
+- **📱 Permanent Maker Signature & Instagram QR Code:** Every strip features `PRINCE TAGADIYA ★ THE CREATO4 LAB` and a centered, scannable QR code linking to [@creato4.lab](https://www.instagram.com/creato4.lab/).
+- **✏️ Custom Captions with Character Limit:** Interactive caption editor with strict **28-character limiters** to fit 32-column 58mm thermal paper without line wrapping.
+- **🕒 Saved Photo Strips Archive & Reprint:** Automatic local history saving previous prints with instant re-print, file load, and image export. Also supports loading any external photo to dither and print.
 - **⚡ Calibrated Anti-Brownout Thermal Timing:** Default heating set to safe 32-dot pulses (`0x04`) and 25ms paced chunks to prevent resets on 5V 3A and 12V adapters.
 
 ---
