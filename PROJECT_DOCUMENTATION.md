@@ -74,7 +74,7 @@ graph TD
 
     subgraph Dual-Engine Person Detection
         ClientVision --> DetectionConsensus[Temporal Consensus Voting (3 Samples)]
-        Frontend -.->|POST /api/detect-faces| BackendVision[Local Server: Apple Vision + ViT ONNX]
+        Frontend -.->|POST /api/detect-faces| BackendVision[Local Server: OpenCV YuNet + ViT ONNX]
         BackendVision --> DetectionConsensus
         DetectionConsensus --> UIIndicators[Header Pill + Cam Chip + Themed Captions]
     end
@@ -142,14 +142,15 @@ SnapBooth supports all standard USB-to-UART bridge ICs:
 | `style.css` | Design System & Styling | Clean tactile design, responsive flex/grid layouts, themed pills (`theme-love`, `theme-yaari`, `theme-bestie`, etc.), thermal paper slot animation. |
 | `app.js` | Core Client Controller | Web Serial driver, camera controls, 3-shot workflow, client-side vision analyzer, Floyd-Steinberg dithering, ESC/POS generator, LocalStorage strip archive. |
 | `server.js` | Local Node.js Proxy Server | OS-level serial port auto-discovery, warm AI Vision subprocess manager, direct serial file descriptor writing with pacing, static asset web server. |
-| `face_detector_ai.py` | Python AI Vision Daemon | Persistent stdin/stdout daemon with ViT ONNX Gender model and native Apple Vision bridge. Uses `reqId` matching to eliminate queue desync. |
-| `face_detector.swift` | Native Apple Vision Detector | Hardware-accelerated Swift program using Apple Neural Engine (`VNDetectFaceRectanglesRequest` + `VNDetectFaceLandmarksRequest`). |
-| `face_detector` | Compiled Native Binary | Standalone native macOS ARM64 binary compiled from `face_detector.swift`. |
+| `face_detector_ai.py` | Python AI Vision Daemon | Persistent stdin/stdout daemon with OpenCV YuNet deep face detector + ViT ONNX Gender model. Uses `reqId` matching to eliminate queue desync. |
+| `face_detection_yunet.onnx` | Deep Learning Face Detector | Compact 227KB deep neural network for instant multi-face detection on Windows/Linux/Mac. |
+| `install_drivers.bat` | Windows Driver Setup | Automated helper to scan COM ports and launch WCH CH340/CH341 driver installer (`CH341SER.EXE`). |
+| `install_drivers.ps1` | PowerShell Driver Script | Deep device manager hardware inspector and driver retriever. |
 | `gender_model.onnx` | ViT Neural Network Model | Compact Vision Transformer ONNX model trained for binary facial feature classification. |
 | `thermal_optimizer.py` | Standalone Image Optimizer | Python utility for adaptive contrast normalization, unsharp masking, and thermal paper pre-processing. |
-| `printer_calibrate.js` | Diagnostic Terminal Utility | Command-line tool to print heat ladders, density tests, and verify baud rate integrity. |
-| `printer_test.js` | Quick Print Verification | Standalone terminal script to output test receipts and verify alignment. |
-| `start.bat` | Windows One-Click Launcher | Launches Node.js server and opens Google Chrome on Windows kiosks. |
+| `printer_calibrate.js` | Diagnostic Terminal Utility | Command-line tool to print heat ladders, density tests, and auto-detect Windows COM ports. |
+| `printer_test.js` | Quick Print Verification | Standalone terminal script to output test receipts and verify Windows COM port communication. |
+| `start.bat` | Windows One-Click Launcher | Scans Windows COM ports, checks environment, launches local server and Google Chrome/Edge. |
 | `start.sh` | macOS One-Click Launcher | Configures execution permissions, starts the local server, and launches Chrome on macOS. |
 
 ---
@@ -170,7 +171,7 @@ SnapBooth automatically detects the number of persons in the photobooth and tail
 ### 5.1 Dual-Engine Architecture
 1. **Local Server Mode (`http://localhost:8080/`):**
    - Automatically posts 320x240 compressed frames to `/api/detect-faces` every 600ms.
-   - The local backend runs native Apple Vision + ONNX ViT inference in sub-250ms warm time.
+   - The local backend runs OpenCV YuNet Deep Face Detection + ONNX ViT gender inference in sub-150ms warm time on Windows/Linux/Mac.
    - Preserves request IDs (`reqId`) across IPC boundaries to prevent asynchronous desynchronization.
 2. **Client-Side Mode (GitHub Pages / Standalone Offline):**
    - If `/api/detect-faces` fails or is unreachable (such as on GitHub Pages), the app seamlessly switches to `detectFacesClientSide()`.

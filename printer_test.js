@@ -8,18 +8,37 @@
 
 const { SerialPort } = require('serialport');
 
-const PORT = '/dev/cu.usbserial-0001';
-const BAUD = 9600;
-
 const TEST = process.argv[2] || 'english';
 
 function wait(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+async function resolvePort() {
+  if (process.argv[3]) return process.argv[3];
+  if (process.env.PORT) return process.env.PORT;
+  try {
+    const list = await SerialPort.list();
+    if (list && list.length > 0) {
+      if (process.platform === 'win32') {
+        const com = list.find(p => p.path.toUpperCase().startsWith('COM'));
+        if (com) return com.path;
+      } else {
+        const usb = list.find(p => /usb|wch|uart|serial/i.test(p.path));
+        if (usb) return usb.path;
+      }
+      return list[0].path;
+    }
+  } catch {}
+  return process.platform === 'win32' ? 'COM3' : '/dev/cu.usbserial-0001';
+}
+
 async function main() {
+  const PORT = await resolvePort();
+  const BAUD = 9600;
+
   console.log(`\n🖨️  RP203 Direct Test @ ${PORT} ${BAUD} baud`);
-  console.log(`📋 Running test: "${TEST}"\n`);
+  console.log(`📋 Running test: "${TEST}" (Platform: ${process.platform})\n`);
 
   const port = new SerialPort({ path: PORT, baudRate: BAUD, autoOpen: false });
 
@@ -156,6 +175,12 @@ main().catch(err => {
   console.error('\n💡 Tips:');
   console.error('  - Make sure printer is ON and connected via USB-TTL');
   console.error('  - Make sure Chrome/browser is NOT holding the port open (disconnect in app first)');
-  console.error('  - Run: ls /dev/cu.usb* to find your port');
+  if (process.platform === 'win32') {
+    console.error('  - Windows: Check Device Manager under "Ports (COM & LPT)"');
+    console.error('  - If CH340 driver is missing, run: install_drivers.bat');
+    console.error('  - Specify port manually: node printer_test.js [english|feed|image|selftest] [COM_PORT]');
+  } else {
+    console.error('  - Run: ls /dev/cu.usb* to find your port');
+  }
   process.exit(1);
 });

@@ -13,6 +13,8 @@ face_detector
 *.onnx
 gender_model.onnx
 
-# OS files
+# OS & Driver installers
 .DS_Store
 Thumbs.db
+*.exe
+CH341SER.EXE

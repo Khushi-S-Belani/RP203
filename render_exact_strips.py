@@ -1,18 +1,22 @@
 import os
 from PIL import Image, ImageDraw, ImageFont
 
-OUTPUT_DIR = '/Users/princetagadiya/Downloads/RP203/generated_strips'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(BASE_DIR, 'generated_strips')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-IMG_INDIVIDUAL = '/Users/princetagadiya/.gemini/antigravity-ide/brain/c677ec64-b868-4ccc-b7bb-2f9675fc6036/sample_individual_1792097271086.jpg'
-IMG_COUPLE = '/Users/princetagadiya/.gemini/antigravity-ide/brain/c677ec64-b868-4ccc-b7bb-2f9675fc6036/sample_couple_1792097287947.jpg'
+IMG_INDIVIDUAL = os.path.join(BASE_DIR, 'sample_individual.jpg')
+IMG_COUPLE = os.path.join(BASE_DIR, 'sample_couple.jpg')
 
 def get_font(size, bold=False):
-    # Try finding system fonts or fall back to default
+    # Try finding system fonts on Windows / Mac / Linux or fall back to default
     candidates = [
+        "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
+        "C:/Windows/Fonts/segoeui.ttf",
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
         "/System/Library/Fonts/Helvetica.ttc",
         "/Library/Fonts/Arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     ]
     for path in candidates:
         if os.path.exists(path):

@@ -1,6 +1,7 @@
 /**
- * SnapBooth — Unified Server with Apple Vision & Python Face Detection
- * Runs on Node.js standard library (http, fs, path, child_process)
+ * SnapBooth — Unified Server (Windows & Cross-Platform Ready)
+ * Supports RP203 / MOD-QC0925 Thermal Printer via Windows COM ports & Web Serial
+ * AI Face & Gender Detection via OpenCV YuNet and ONNX Runtime
  */
 
 const http = require('http');
@@ -8,20 +9,42 @@ const fs   = require('fs');
 const path = require('path');
 const { execSync, spawn } = require('child_process');
 
+let SerialPort = null;
+try {
+  SerialPort = require('serialport').SerialPort;
+} catch {}
+
 const PORT = 8080;
 const PUBLIC_DIR = __dirname;
 
 let activePortPath = null;
 let activePortFd = null;
+let activeSerialPort = null;
 
 let aiWorker = null;
 let aiReqCounter = 0;
 const aiPendingRequests = new Map();
 
+function getPythonCommand() {
+  if (process.platform === 'win32') {
+    try {
+      execSync('python --version', { stdio: 'ignore' });
+      return 'python';
+    } catch {}
+    try {
+      execSync('py --version', { stdio: 'ignore' });
+      return 'py';
+    } catch {}
+  }
+  return 'python3';
+}
+
 function getAiWorker() {
   if (aiWorker && !aiWorker.killed) return aiWorker;
   const scriptPath = path.join(__dirname, 'face_detector_ai.py');
-  aiWorker = spawn('python3', [scriptPath, '--daemon']);
+  const pyCmd = getPythonCommand();
+  
+  aiWorker = spawn(pyCmd, [scriptPath, '--daemon']);
   
   let buffer = '';
   aiWorker.stdout.on('data', chunk => {
@@ -71,7 +94,11 @@ function getAiWorker() {
 }
 
 // Pre-warm AI worker
-getAiWorker();
+try {
+  getAiWorker();
+} catch (e) {
+  console.log('AI worker pre-warm note:', e.message);
+}
 
 const MIME = {
   '.html': 'text/html',
@@ -90,14 +117,48 @@ const MIME = {
 function scanSerialPorts() {
   try {
     if (process.platform === 'win32') {
-      const raw = execSync('powershell -NoProfile -Command "[System.IO.Ports.SerialPort]::GetPortNames()" 2>nul', { encoding: 'utf8' });
-      const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-      return lines.map(p => ({
-        path: p,
-        name: p,
-        isUsb: true
-      }));
+      const found = [];
+      
+      // 1. Query WMI / PnP for friendly names (e.g. CH340, CP2102)
+      try {
+        const psCmd = `powershell -NoProfile -Command "Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Ports' -or $_.Name -match 'COM[0-9]+' } | Select-Object -Property Name, DeviceID | ConvertTo-Json -Compress" 2>nul`;
+        const rawJson = execSync(psCmd, { encoding: 'utf8' }).trim();
+        if (rawJson) {
+          const data = JSON.parse(rawJson);
+          const arr = Array.isArray(data) ? data : [data];
+          for (const d of arr) {
+            const match = (d.Name || '').match(/\((COM\d+)\)/i);
+            const portName = match ? match[1].toUpperCase() : null;
+            if (portName) {
+              found.push({
+                path: portName,
+                name: d.Name || portName,
+                isUsb: /usb|ch34|cp21|ftdi|uart/i.test((d.Name || '') + (d.DeviceID || ''))
+              });
+            }
+          }
+        }
+      } catch {}
+
+      // 2. Query .NET SerialPort.GetPortNames() for any remaining ports
+      try {
+        const raw = execSync('powershell -NoProfile -Command "[System.IO.Ports.SerialPort]::GetPortNames()" 2>nul', { encoding: 'utf8' });
+        const lines = raw.split(/\r?\n/).map(s => s.trim().toUpperCase()).filter(Boolean);
+        for (const p of lines) {
+          if (!found.some(f => f.path === p)) {
+            found.push({
+              path: p,
+              name: `${p} (Serial Port)`,
+              isUsb: true
+            });
+          }
+        }
+      } catch {}
+
+      return found;
     }
+
+    // macOS / Linux
     const raw = execSync('ls -1 /dev/tty.* 2>/dev/null', { encoding: 'utf8' });
     const lines = raw.split('\n').filter(Boolean);
     const usbPorts = lines.filter(p => /usb|wch|uart|serial/i.test(p));
@@ -114,21 +175,41 @@ function scanSerialPorts() {
 
 function writeSerialBytesPaced(bytesBuffer, chunkSize = 16, delayMs = 15) {
   return new Promise(async (resolve, reject) => {
-    if (!activePortFd) {
+    if (!activeSerialPort && !activePortFd) {
       return reject(new Error('No printer port is open'));
     }
+
     try {
-      for (let i = 0; i < bytesBuffer.length; i += chunkSize) {
-        const chunk = bytesBuffer.subarray(i, Math.min(i + chunkSize, bytesBuffer.length));
-        await new Promise((res, rej) => {
-          fs.write(activePortFd, chunk, 0, chunk.length, null, (err) => {
-            if (err) return rej(err);
-            res();
+      if (activeSerialPort && activeSerialPort.isOpen) {
+        for (let i = 0; i < bytesBuffer.length; i += chunkSize) {
+          const chunk = bytesBuffer.subarray(i, Math.min(i + chunkSize, bytesBuffer.length));
+          await new Promise((res, rej) => {
+            activeSerialPort.write(chunk, (err) => {
+              if (err) return rej(err);
+              activeSerialPort.drain((drainErr) => {
+                if (drainErr) return rej(drainErr);
+                res();
+              });
+            });
           });
-        });
-        await new Promise(r => setTimeout(r, delayMs));
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+        return resolve();
       }
-      resolve();
+
+      if (activePortFd) {
+        for (let i = 0; i < bytesBuffer.length; i += chunkSize) {
+          const chunk = bytesBuffer.subarray(i, Math.min(i + chunkSize, bytesBuffer.length));
+          await new Promise((res, rej) => {
+            fs.write(activePortFd, chunk, 0, chunk.length, null, (err) => {
+              if (err) return rej(err);
+              res();
+            });
+          });
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+        return resolve();
+      }
     } catch (err) {
       reject(err);
     }
@@ -138,7 +219,8 @@ function writeSerialBytesPaced(bytesBuffer, chunkSize = 16, delayMs = 15) {
 function configureBaud(portPath, baudRate = 9600) {
   try {
     if (process.platform === 'win32') {
-      execSync(`mode ${portPath}: BAUD=${baudRate} PARITY=n DATA=8 STOP=1 2>nul`);
+      const cleanPort = portPath.replace(/^\\\\\\.\\\\/, '').replace(/:$/, '');
+      execSync(`mode ${cleanPort}: BAUD=${baudRate} PARITY=n DATA=8 STOP=1 2>nul`);
       return true;
     }
     execSync(`stty -f "${portPath}" ${baudRate} cs8 -cstopb -parenb -echo raw 2>/dev/null`);
@@ -146,6 +228,20 @@ function configureBaud(portPath, baudRate = 9600) {
   } catch (e) {
     return false;
   }
+}
+
+function closeActivePort() {
+  if (activeSerialPort) {
+    try {
+      if (activeSerialPort.isOpen) activeSerialPort.close();
+    } catch {}
+    activeSerialPort = null;
+  }
+  if (activePortFd) {
+    try { fs.closeSync(activePortFd); } catch {}
+    activePortFd = null;
+  }
+  activePortPath = null;
 }
 
 const server = http.createServer(async (req, res) => {
@@ -167,8 +263,9 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       ok: true,
-      printerConnected: activePortFd !== null,
-      port: activePortPath
+      printerConnected: activeSerialPort !== null || activePortFd !== null,
+      port: activePortPath,
+      platform: process.platform
     }));
     return;
   }
@@ -177,11 +274,11 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/ports' || pathname === '/ports') {
     const ports = scanSerialPorts();
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, ports }));
+    res.end(JSON.stringify({ ok: true, ports, platform: process.platform }));
     return;
   }
 
-  // ── API: Detect Faces (Native Apple Vision Neural Framework) ─
+  // ── API: Detect Faces (Windows / Cross-Platform AI) ───────
   if ((pathname === '/api/detect-faces' || pathname === '/detect-faces') && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
@@ -230,7 +327,8 @@ const server = http.createServer(async (req, res) => {
         }
 
         const scriptPath = path.join(__dirname, 'thermal_optimizer.py');
-        const proc = spawn('python3', [scriptPath]);
+        const pyCmd = getPythonCommand();
+        const proc = spawn(pyCmd, [scriptPath]);
         let stdout = '';
         let stderr = '';
         proc.stdout.on('data', d => { stdout += d; });
@@ -267,7 +365,7 @@ const server = http.createServer(async (req, res) => {
   if ((pathname === '/api/connect' || pathname === '/connect') && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const { port, baud } = JSON.parse(body || '{}');
         if (!port) {
@@ -276,21 +374,45 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        if (activePortFd) {
-          try { fs.closeSync(activePortFd); } catch {}
-          activePortFd = null;
-          activePortPath = null;
+        closeActivePort();
+        const baudRate = Number(baud) || 9600;
+
+        // Try SerialPort package first
+        if (SerialPort) {
+          try {
+            const sPort = new SerialPort({
+              path: port,
+              baudRate: baudRate,
+              autoOpen: false
+            });
+
+            await new Promise((resolve, reject) => {
+              sPort.open(err => err ? reject(err) : resolve());
+            });
+
+            activeSerialPort = sPort;
+            activePortPath = port;
+            console.log(`✅ RP203 connected via SerialPort to ${port} @ ${baudRate} baud`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, port, baud: baudRate, method: 'serialport' }));
+            return;
+          } catch (spErr) {
+            console.warn(`SerialPort connect attempt failed on ${port}: ${spErr.message}, trying direct file descriptor...`);
+          }
         }
 
-        configureBaud(port, baud || 9600);
+        // Direct file descriptor fallback
+        configureBaud(port, baudRate);
 
-        const fd = fs.openSync(port, fs.constants.O_RDWR | fs.constants.O_NOCTTY | fs.constants.O_NONBLOCK);
+        const winPort = process.platform === 'win32' && !port.startsWith('\\\\.\\') ? `\\\\.\\${port}` : port;
+        const flags = process.platform === 'win32' ? (fs.constants.O_RDWR || 2) : (fs.constants.O_RDWR | (fs.constants.O_NOCTTY || 0) | (fs.constants.O_NONBLOCK || 0));
+        const fd = fs.openSync(winPort, flags);
         activePortFd = fd;
         activePortPath = port;
 
-        console.log(`✅ RP203 connected to ${port} @ ${baud || 9600} baud`);
+        console.log(`✅ RP203 connected via direct FD to ${port} @ ${baudRate} baud`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, port, baud: baud || 9600 }));
+        res.end(JSON.stringify({ ok: true, port, baud: baudRate, method: 'fd' }));
       } catch (err) {
         console.error('Connect failed:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -302,11 +424,7 @@ const server = http.createServer(async (req, res) => {
 
   // ── API: Disconnect ───────────────────────────────────────
   if ((pathname === '/api/disconnect' || pathname === '/disconnect') && req.method === 'POST') {
-    if (activePortFd) {
-      try { fs.closeSync(activePortFd); } catch {}
-      activePortFd = null;
-      activePortPath = null;
-    }
+    closeActivePort();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return;
@@ -314,7 +432,7 @@ const server = http.createServer(async (req, res) => {
 
   // ── API: Test Print ───────────────────────────────────────
   if ((pathname === '/api/test' || pathname === '/test') && req.method === 'POST') {
-    if (!activePortFd) {
+    if (!activeSerialPort && !activePortFd) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Printer is not connected' }));
       return;
@@ -426,12 +544,10 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`SnapBooth Server Running at http://localhost:${PORT}`);
+  console.log(`SnapBooth Server Running at http://localhost:${PORT} (Platform: ${process.platform})`);
 });
 
 process.on('SIGINT', () => {
-  if (activePortFd) {
-    try { fs.closeSync(activePortFd); } catch {}
-  }
+  closeActivePort();
   process.exit(0);
 });

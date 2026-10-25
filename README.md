@@ -1,10 +1,10 @@
-# 📸 SnapBooth — RP203 Thermal Photo Booth (Windows & Mac Ready)
+# 📸 SnapBooth — RP203 Thermal Photo Booth (Windows Ready)
 
-[![GitHub Pages](https://img.shields.io/badge/Demo-GitHub%20Pages-blue?style=for-the-badge&logo=github)](https://prince-tagadiya.github.io/RP203/)
 [![Web Serial API](https://img.shields.io/badge/Web%20Serial-Ready-success?style=for-the-badge&logo=googlechrome)](https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API)
-[![Hardware](https://img.shields.io/badge/Printer-RP203%20Thermal-orange?style=for-the-badge)](https://github.com/Prince-Tagadiya/RP203)
+[![Hardware](https://img.shields.io/badge/Printer-RP203%20Thermal-orange?style=for-the-badge)](https://github.com/Khushi-S-Belani/RP203)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-blue?style=for-the-badge&logo=windows)](https://github.com/Khushi-S-Belani/RP203)
 
-An authentic, ultra-smooth **photo booth and thermal printing kiosk** designed for the **RP203 (MOD-QC0925 / 58mm thermal printer)**. Connects directly to your thermal printer via **Web Serial API** at **9600 baud** with zero drivers needed on Chrome & Edge.
+An authentic, ultra-smooth **photo booth and thermal printing kiosk** designed for the **RP203 (MOD-QC0925 / 58mm thermal printer)**. Connects directly to your thermal printer via **Windows COM Serial Ports** & **Web Serial API** at **9600 baud** with 1-click Windows driver setup.
 
 📖 **For exhaustive technical documentation, hardware pinouts, and architectural specifications, see [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md).**
 
@@ -12,23 +12,30 @@ An authentic, ultra-smooth **photo booth and thermal printing kiosk** designed f
 
 ## ✨ Key Features
 
-- **👥 Robust Automatic Person Detection:** Instant dual-engine face and group detection (Local Apple Vision + browser-native spatial energy fallback) that automatically classifies **1 Person (Solo)**, **Couple / Love (`👨 👩` / `♥`)**, **Trio**, or **Squad** with temporal smoothing (zero jitter) and live UI indicators.
+- **👥 Robust Automatic Person Detection:** Instant dual-engine face and group detection (OpenCV Deep YuNet + ONNX ViT gender classification with browser spatial fallback) that automatically classifies **1 Person (Solo)**, **Couple / Love (`👨 👩` / `♥`)**, **Trio**, or **Squad** with temporal smoothing and live UI indicators.
 - **🖨️ Authentic Live Thermal Print Preview:** Real-time 1:1 progressive print simulation in the UI as paper emerges line-by-line from the thermal slot, showing exact Floyd-Steinberg monochrome dithering.
-- **📱 Permanent Maker Signature & Instagram QR Code:** Every strip features `PRINCE TAGADIYA ★ THE CREATO4 LAB` and a centered, scannable QR code linking to [@creato4.lab](https://www.instagram.com/creato4.lab/).
 - **✏️ Custom Captions with Character Limit:** Interactive caption editor with strict **28-character limiters** to fit 32-column 58mm thermal paper without line wrapping.
 - **🕒 Saved Photo Strips Archive & Reprint:** Automatic local history saving previous prints with instant re-print, file load, and image export. Also supports loading any external photo to dither and print.
 - **⚡ Calibrated Anti-Brownout Thermal Timing:** Default heating set to safe 32-dot pulses (`0x04`) and 25ms paced chunks to prevent resets on 5V 3A and 12V adapters.
 
 ---
 
-## 🚀 Plug & Play Quick Start
+## 🚀 Windows Quick Start (100% Plug & Play)
 
-### 🪟 Windows (10 / 11) — 100% Plug & Play
-1. Plug your USB-to-TTL adapter into any USB port (Windows assigns it `COM3`, `COM4`, etc.).
-2. Double-click **`start.bat`**.
-3. In Chrome or Edge, click **"🖨️ Printer Settings" → "Connect Printer"**, pick your COM port, and you're ready to print!
+### 1. Driver Installation (WCH CH340 / CH341)
+If your USB-to-TTL adapter or printer does not yet appear in Device Manager:
+- Double-click **`install_drivers.bat`**
+- In the installer window, click **INSTALL**
+- Unplug and replug your printer's USB cable (Windows will assign it `COM3`, `COM4`, etc.)
 
-### 🍎 macOS
+### 2. Launch the Booth
+1. Double-click **`start.bat`** (or run `npm start`).
+2. The script will automatically scan your COM ports and launch Chrome/Edge to `http://localhost:8080`.
+3. Click **"🖨️ Printer Settings" → "Connect Printer"**, select your COM port, and you're ready to snap & print!
+
+---
+
+## 🍎 macOS Setup (Alternative)
 1. Open Terminal and run:
    ```bash
    chmod +x start.sh
@@ -36,13 +43,8 @@ An authentic, ultra-smooth **photo booth and thermal printing kiosk** designed f
    ```
 2. If using a CH340 adapter for the first time:
    ```bash
-   brew install --cask wch-ch34x-usb-serial-driver
+   npm run install-driver:mac
    ```
-   Allow in **System Settings > Privacy & Security** and restart your Mac.
-
-### 🌐 GitHub Pages (Run Directly in Browser)
-No Node.js or installation needed! Open in **Google Chrome** or **Microsoft Edge**:
-👉 **[https://prince-tagadiya.github.io/RP203/](https://prince-tagadiya.github.io/RP203/)**
 
 ---
 
@@ -62,17 +64,18 @@ No Node.js or installation needed! Open in **Google Chrome** or **Microsoft Edge
 
 ## 🛠️ Testing & Calibration Scripts
 
-Run direct terminal diagnostics if you want to test the hardware independently:
+Run direct terminal diagnostics to verify hardware and COM port communication independently:
 ```bash
 # Print diagnostic heat ladder & test strips
-node printer_calibrate.js 5v     # Calibrated for 5V 3A adapter
-node printer_calibrate.js 12v    # Calibrated low-duty for 12V 1A adapter
+npm run calibrate-printer         # Calibrated for 5V 3A adapter (auto-detects COM port)
+node printer_calibrate.js 12v COM3 # Throttled low-duty for 12V 1A adapter
 
 # Quick receipt & alignment test
-node printer_test.js
+npm run test-printer              # Auto-detects COM port
+node printer_test.js english COM3 # Explicit COM port test
 ```
 
 ---
 
 ## 📜 License
-MIT License. Built with love for makers, photobooth enthusiasts, and thermal hardware hackers.
+MIT License. Built for photobooth kiosks, makers, and thermal hardware hackers.

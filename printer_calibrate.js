@@ -17,9 +17,27 @@
 
 const { SerialPort } = require('serialport');
 
-const PORT = process.env.PORT || '/dev/cu.usbserial-0001';
 const BAUD = 9600;
 const MODE = (process.argv[2] || '5v').toLowerCase();
+
+async function resolvePort() {
+  if (process.argv[3]) return process.argv[3];
+  if (process.env.PORT) return process.env.PORT;
+  try {
+    const list = await SerialPort.list();
+    if (list && list.length > 0) {
+      if (process.platform === 'win32') {
+        const com = list.find(p => p.path.toUpperCase().startsWith('COM'));
+        if (com) return com.path;
+      } else {
+        const usb = list.find(p => /usb|wch|uart|serial/i.test(p.path));
+        if (usb) return usb.path;
+      }
+      return list[0].path;
+    }
+  } catch {}
+  return process.platform === 'win32' ? 'COM3' : '/dev/cu.usbserial-0001';
+}
 
 function wait(ms) {
   return new Promise(r => setTimeout(r, ms));
@@ -47,9 +65,10 @@ const PROFILES = {
 };
 
 async function main() {
+  const PORT = await resolvePort();
   console.log(`\n======================================================`);
   console.log(`🖨️  RP203 CALIBRATION & HARDWARE DIAGNOSTICS`);
-  console.log(`   Port: ${PORT} @ ${BAUD} baud`);
+  console.log(`   Port: ${PORT} @ ${BAUD} baud (Platform: ${process.platform})`);
   console.log(`   Mode: "${MODE}"`);
   console.log(`======================================================\n`);
 
