@@ -487,6 +487,7 @@ function clearAllStickers() {
 }
 
 function drawStickers() {
+  if (!stickerCanvas) return;
   const ctx = stickerCanvas.getContext('2d');
   ctx.clearRect(0, 0, stickerCanvas.width, stickerCanvas.height);
   const w = stickerCanvas.width, h = stickerCanvas.height;
@@ -499,6 +500,7 @@ function drawStickers() {
 }
 
 function initStickerEvents() {
+  if (!stickerCanvas) return;
   stickerCanvas.addEventListener('mousedown', e => {
     const rect = stickerCanvas.getBoundingClientRect();
     const mx = (e.clientX - rect.left) / rect.width;
@@ -511,7 +513,7 @@ function initStickerEvents() {
     }
   });
   window.addEventListener('mousemove', e => {
-    if (!activeSticker) return;
+    if (!activeSticker || !stickerCanvas) return;
     const rect = stickerCanvas.getBoundingClientRect();
     const mx = (e.clientX - rect.left) / rect.width;
     const my = (e.clientY - rect.top)  / rect.height;
